@@ -23,6 +23,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Archivo faltante." }, { status: 400 });
   }
 
+  const filename = file.name && file.name.trim() ? file.name.trim() : "upload.bin";
+
   if (file.size > MAX_BYTES) {
     return NextResponse.json(
       { error: "Archivo demasiado grande (max 50MB)." },
@@ -38,7 +40,7 @@ export async function POST(request: Request) {
   }
 
   const outbound = new FormData();
-  outbound.append("file", file, file.name);
+  outbound.append("file", file, filename);
   outbound.append("title", typeof title === "string" ? title : file.name);
   outbound.append("artist", typeof artist === "string" ? artist : "Artista nuevo");
   outbound.append("lyrics", typeof lyrics === "string" ? lyrics : "");
