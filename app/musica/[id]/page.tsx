@@ -46,6 +46,10 @@ export default function SongPage() {
   const [song, setSong] = useState<(typeof songs)[number] | null>(
     songId ? BACKEND_DEMO_FALLBACK.find((item) => item.id === songId) ?? null : null
   );
+  const [isLoadingSong, setIsLoadingSong] = useState(
+    Boolean(songId && !BACKEND_DEMO_FALLBACK.some((item) => item.id === songId))
+  );
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -53,6 +57,8 @@ export default function SongPage() {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const lyricRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const pendingSeekRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!songId || BACKEND_DEMO_FALLBACK.some((item) => item.id === songId)) {
@@ -72,9 +78,17 @@ export default function SongPage() {
         const payload = (await response.json()) as (typeof songs)[number];
         if (!controller.signal.aborted) {
           setSong(payload);
+          setLoadError(null);
+          setIsLoadingSong(false);
         }
-      } catch {
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+
         if (!controller.signal.aborted) {
+          setLoadError("No se pudo cargar la cancion.");
+          setIsLoadingSong(false);
           setSong(null);
         }
       }
@@ -86,6 +100,20 @@ export default function SongPage() {
   }, [songId]);
 
   const lyrics = useMemo(() => parseLrc(song?.lrc ?? ""), [song?.lrc]);
+  const activeLyricIndex = useMemo(() => {
+    if (!lyrics.length) return -1;
+
+    let currentIndex = 0;
+    for (let index = 0; index < lyrics.length; index += 1) {
+      if (lyrics[index].time <= currentTime) {
+        currentIndex = index;
+      } else {
+        break;
+      }
+    }
+
+    return currentIndex;
+  }, [currentTime, lyrics]);
 
   const sourceVideoUrl = song?.videoUrl ?? videoUrl;
 
@@ -104,13 +132,49 @@ export default function SongPage() {
     };
   }, [videoUrl]);
 
+  useEffect(() => {
+    if (activeLyricIndex < 0) return;
+
+    lyricRefs.current[activeLyricIndex]?.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+  }, [activeLyricIndex]);
+
   const handleSeek = (offset: number) => {
-    if (!videoRef.current) return;
-    const videoDuration = videoRef.current.duration || duration;  // ← Este es el fix
-    const next = Math.min(Math.max(videoRef.current.currentTime + offset, 0), videoDuration);
-    videoRef.current.currentTime = next;
+    const media = videoRef.current;
+    if (!media) return;
+
+    const canSeekNow = Number.isFinite(media.duration) && media.duration > 0;
+    const mediaDuration = canSeekNow ? media.duration : duration;
+    const next = Math.max(0, Math.min(media.currentTime + offset, mediaDuration || media.currentTime + offset));
+
+    if (!canSeekNow && media.readyState < 1) {
+      pendingSeekRef.current = next;
+      return;
+    }
+
+    media.currentTime = next;
     setCurrentTime(next);
   };
+
+  if (isLoadingSong) {
+    return (
+      <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#f7f2ff,_#e9f6ff_50%,_#fff8ec_100%)]">
+        <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-6 py-12">
+          <Link
+            className="w-fit rounded-full border border-black/10 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-zinc-700"
+            href="/catalogo"
+          >
+            Volver al catalogo
+          </Link>
+          <div className="rounded-3xl border border-black/10 bg-white/80 p-6 shadow-sm backdrop-blur">
+            Cargando cancion...
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!song) {
     return (
@@ -123,7 +187,7 @@ export default function SongPage() {
             Volver al catalogo
           </Link>
           <div className="rounded-3xl border border-black/10 bg-white/80 p-6 shadow-sm backdrop-blur">
-            Cancion no encontrada.
+            {loadError ?? "Cancion no encontrada."}
           </div>
         </div>
       </div>
@@ -153,10 +217,22 @@ export default function SongPage() {
                   <video
                     ref={videoRef}
                     src={sourceVideoUrl}
+                    preload="auto"
                     className="h-full w-full object-cover"
                     onLoadedMetadata={(event) => {
                       const value = event.currentTarget.duration || 0;
                       setDuration(value);
+                      if (pendingSeekRef.current !== null) {
+                        event.currentTarget.currentTime = pendingSeekRef.current;
+                        setCurrentTime(pendingSeekRef.current);
+                        pendingSeekRef.current = null;
+                      }
+                    }}
+                    onLoadedData={(event) => {
+                      const value = event.currentTarget.duration || 0;
+                      if (value > 0) {
+                        setDuration(value);
+                      }
                     }}
                     onTimeUpdate={(event) => {
                       setCurrentTime(event.currentTarget.currentTime);
@@ -298,17 +374,28 @@ export default function SongPage() {
             </div>
             <div className="rounded-2xl border border-black/10 bg-white p-4">
               <div className="flex flex-col gap-2 text-sm">
-                {lyrics.map((line) => (
-                  <div
-                    key={`${line.time}-${line.text}`}
-                    className="rounded-lg bg-zinc-50 px-3 py-2 text-zinc-700"
-                  >
-                    <span className="mr-2 text-xs font-semibold uppercase tracking-[0.2em] opacity-70">
-                      {line.time.toFixed(2)}
-                    </span>
-                    {line.text}
-                  </div>
-                ))}
+                {lyrics.map((line, index) => {
+                  const isActive = index === activeLyricIndex;
+
+                  return (
+                    <div
+                      key={`${line.time}-${line.text}`}
+                      ref={(element) => {
+                        lyricRefs.current[index] = element;
+                      }}
+                      className={`rounded-lg px-3 py-2 transition-all ${
+                        isActive
+                          ? "bg-zinc-900 text-white shadow-md scale-[1.01]"
+                          : "bg-zinc-50 text-zinc-700"
+                      }`}
+                    >
+                      <span className={`mr-2 text-xs font-semibold uppercase tracking-[0.2em] ${isActive ? "opacity-90" : "opacity-70"}`}>
+                        {line.time.toFixed(2)}
+                      </span>
+                      {line.text}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 

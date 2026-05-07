@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
+import { Agent } from "undici";
 
 const MAX_BYTES = 50 * 1024 * 1024;
 const BACKEND_URL = (process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "").replace(
   /\/+$/,
   ""
 );
+const UPLOAD_DISPATCHER = new Agent({
+  headersTimeout: 15 * 60 * 1000,
+  bodyTimeout: 15 * 60 * 1000,
+});
 
 export async function POST(request: Request) {
   const formData = await request.formData();
@@ -41,8 +46,9 @@ export async function POST(request: Request) {
 
   const response = await fetch(`${BACKEND_URL}/separate`, {
     method: "POST",
-    body: outbound,
-  });
+    body: outbound as unknown as BodyInit,
+    dispatcher: UPLOAD_DISPATCHER,
+  } as any);
 
   if (!response.ok) {
     const errorText = await response.text();
