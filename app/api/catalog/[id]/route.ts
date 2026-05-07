@@ -7,7 +7,8 @@ const BACKEND_URL = (process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_
 
 const normalizeUrl = (value: unknown) => {
   if (typeof value !== "string" || !value) return undefined;
-  return value.startsWith("http") ? value : `${BACKEND_URL}${value}`;
+  if (value.startsWith("http")) return value;
+  return BACKEND_URL ? `${BACKEND_URL}${value}` : value;
 };
 
 export async function GET(

@@ -56,7 +56,9 @@ export default function SongPage() {
   const [showEndOptions, setShowEndOptions] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [instrumentalReady, setInstrumentalReady] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const lyricRefs = useRef<Array<HTMLDivElement | null>>([]);
   const pendingSeekRef = useRef<number | null>(null);
 
@@ -118,13 +120,38 @@ export default function SongPage() {
   const sourceVideoUrl = song?.videoUrl ?? videoUrl;
 
   useEffect(() => {
-    if (!videoRef.current || !sourceVideoUrl) return;
-    if (isPlaying) {
-      void videoRef.current.play();
-    } else {
-      videoRef.current.pause();
+    // If we have an instrumental audio, use it as the master playback and mute the video.
+    const videoEl = videoRef.current;
+    const audioEl = audioRef.current;
+
+    if (audioEl && instrumentalReady) {
+      if (isPlaying) {
+        void audioEl.play();
+        if (videoEl) {
+          try {
+            videoEl.muted = true;
+            void videoEl.play();
+          } catch (e) {
+            // ignore
+          }
+        }
+      } else {
+        audioEl.pause();
+        if (videoEl) videoEl.pause();
+      }
+      return;
     }
-  }, [isPlaying, sourceVideoUrl]);
+
+    if (!videoEl || !sourceVideoUrl) return;
+    if (videoEl) {
+      videoEl.muted = false;
+    }
+    if (isPlaying) {
+      void videoEl.play();
+    } else {
+      videoEl.pause();
+    }
+  }, [isPlaying, sourceVideoUrl, instrumentalReady]);
 
   useEffect(() => {
     return () => {
@@ -142,19 +169,32 @@ export default function SongPage() {
   }, [activeLyricIndex]);
 
   const handleSeek = (offset: number) => {
-    const media = videoRef.current;
+    const audioEl = audioRef.current;
+    const videoEl = videoRef.current;
+    const media = audioEl ?? videoEl;
     if (!media) return;
 
     const canSeekNow = Number.isFinite(media.duration) && media.duration > 0;
     const mediaDuration = canSeekNow ? media.duration : duration;
-    const next = Math.max(0, Math.min(media.currentTime + offset, mediaDuration || media.currentTime + offset));
+    const next = Math.max(0, Math.min((media.currentTime || 0) + offset, mediaDuration || (media.currentTime || 0) + offset));
 
-    if (!canSeekNow && media.readyState < 1) {
+    if (!canSeekNow && (media.readyState ?? 0) < 1) {
       pendingSeekRef.current = next;
       return;
     }
 
-    media.currentTime = next;
+    try {
+      if (audioEl) audioEl.currentTime = next;
+    } catch (e) {
+      // ignore
+    }
+
+    try {
+      if (videoEl) videoEl.currentTime = next;
+    } catch (e) {
+      // ignore
+    }
+
     setCurrentTime(next);
   };
 
@@ -214,10 +254,11 @@ export default function SongPage() {
             <div className="space-y-4">
               <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-black/10 bg-zinc-900/90">
                 {sourceVideoUrl ? (
-                  <video
+                    <video
                     ref={videoRef}
                     src={sourceVideoUrl}
                     preload="auto"
+                      muted={Boolean(song?.instrumentalUrl && instrumentalReady)}
                     className="h-full w-full object-cover"
                     onLoadedMetadata={(event) => {
                       const value = event.currentTarget.duration || 0;
@@ -316,6 +357,45 @@ export default function SongPage() {
                   </>
                 )}
               </div>
+
+              {song?.instrumentalUrl ? (
+                <audio
+                  ref={audioRef}
+                  src={song.instrumentalUrl}
+                  preload="auto"
+                  style={{ display: "none" }}
+                  onCanPlay={() => {
+                    setInstrumentalReady(true);
+                  }}
+                  onLoadedMetadata={(event) => {
+                    const value = event.currentTarget.duration || 0;
+                    setDuration(value);
+                    if (pendingSeekRef.current !== null) {
+                      event.currentTarget.currentTime = pendingSeekRef.current;
+                      setCurrentTime(pendingSeekRef.current);
+                      pendingSeekRef.current = null;
+                    }
+                  }}
+                  onTimeUpdate={(event) => {
+                    const t = event.currentTarget.currentTime;
+                    setCurrentTime(t);
+                    if (videoRef.current && Math.abs(videoRef.current.currentTime - t) > 0.5) {
+                      try {
+                        videoRef.current.currentTime = t;
+                      } catch (e) {
+                        // ignore
+                      }
+                    }
+                  }}
+                  onEnded={() => {
+                    setIsPlaying(false);
+                    setShowEndOptions(true);
+                  }}
+                  onError={() => {
+                    setInstrumentalReady(false);
+                  }}
+                />
+              ) : null}
 
               <div className="rounded-2xl border border-black/10 bg-white p-4">
                 <div className="flex flex-wrap items-center gap-3">
