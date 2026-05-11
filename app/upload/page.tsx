@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState, useMemo, useEffect } from "react";
+import { CloudUpload, Heart, Sparkles, Music } from "lucide-react";
 
 const CHUNK_SIZE = 3 * 1024 * 1024; // 3MB chunks (more conservative than 5MB)
 const MAX_PARALLEL_CHUNKS = 3;
@@ -253,13 +254,15 @@ export default function UploadPage() {
 
         <div className="rounded-3xl border border-white/50 bg-white/40 p-6 shadow-[0_8px_30px_rgb(251,113,133,0.1)] backdrop-blur-md">
           <div className="flex flex-col gap-4">
-            <div>
-              <h1 className="text-2xl font-semibold text-zinc-900">
-                Subir archivo para separar voz
+            <div className="flex flex-col items-center text-center">
+              <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-rose-500 mb-2 shadow-inner">
+                <Sparkles className="h-6 w-6" />
+              </div>
+              <h1 className="text-3xl font-bold text-zinc-800">
+                Sube una Canción Mágica ✨
               </h1>
-              <p className="mt-2 text-sm text-zinc-700">
-                Esta pagina envia el archivo al backend. La separacion real se
-                conecta despues.
+              <p className="mt-2 text-sm font-medium text-rose-400/80 max-w-md">
+                Elige nuestra canción favorita. Le quitaremos la voz con mucha magia para que podamos cantarla juntos.
               </p>
             </div>
 
@@ -289,22 +292,28 @@ export default function UploadPage() {
                     />
                   </div>
                 </div>
-                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-600">
-                  Archivo (audio o video)
-                </label>
-                <input
-                  className="w-full text-sm"
-                  type="file"
-                  accept="audio/*,video/*"
-                  onChange={(event) => {
-                    const nextFile = event.target.files?.[0] ?? null;
-                    setSelectedFile(nextFile);
-                    if (nextFile && !title.trim()) {
-                      setTitle(nextFile.name.replace(/\.[^.]+$/, ""));
-                    }
-                    setUploadState({ status: "idle" });
-                  }}
-                />
+                <div className="relative flex flex-col items-center justify-center rounded-[2rem] border-4 border-dashed border-rose-200 bg-white/40 py-12 transition-all hover:bg-rose-50 hover:border-rose-300">
+                  <input
+                    className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
+                    type="file"
+                    accept="audio/*,video/*"
+                    onChange={(event) => {
+                      const nextFile = event.target.files?.[0] ?? null;
+                      setSelectedFile(nextFile);
+                      if (nextFile && !title.trim()) {
+                        setTitle(nextFile.name.replace(/\.[^.]+$/, ""));
+                      }
+                      setUploadState({ status: "idle" });
+                    }}
+                  />
+                  <CloudUpload className="mb-4 h-16 w-16 text-rose-300" />
+                  <p className="text-lg font-bold text-zinc-700">
+                    {selectedFile ? selectedFile.name : "Toca aquí para elegir tu canción ☁️"}
+                  </p>
+                  <p className="mt-1 text-sm font-medium text-rose-400/80">
+                    {selectedFile ? "¡Perfecto! Ahora ponle un lindo título 👇" : "Audio o Video (mp3, wav, mp4)"}
+                  </p>
+                </div>
                 <div className="flex flex-col gap-2">
                   <label className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-600">
                     Letras o LRC
@@ -405,14 +414,14 @@ export default function UploadPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-dashed border-rose-200 bg-white/50 p-4 text-sm text-zinc-700 backdrop-blur-sm">
-              <p className="font-semibold text-zinc-900">Optimizaciones activas</p>
-              <p className="mt-1 text-[11px]">
-                ⚡ Subida dividida en chunks de 5MB subidos en paralelo (máx 3 simultáneamente)
-              </p>
-              <p className="mt-1 text-[11px]">
-                📊 Progreso actualizado en tiempo real de cada chunk
-              </p>
+            <div className="flex items-start gap-4 rounded-[2rem] border-2 border-dashed border-rose-200 bg-white/50 p-6 text-sm text-zinc-700 backdrop-blur-sm">
+              <Heart className="h-8 w-8 shrink-0 text-rose-300" />
+              <div>
+                <p className="text-base font-bold text-zinc-800">Magia en proceso 💕</p>
+                <p className="mt-1 font-medium text-rose-400/80">
+                  Subimos las canciones rapidísimo dividiéndolas en partes para no hacerte esperar. ¡Pronto estaremos cantando!
+                </p>
+              </div>
             </div>
           </div>
         </div>
