@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { songs } from "../../data/songs";
+import { type Song, songs } from "../../data/songs";
+import { Play, Pause, Rewind, FastForward, HeartPulse, Sparkles, Music2 } from "lucide-react";
 
 type LrcLine = {
   time: number;
@@ -249,10 +250,10 @@ export default function SongPage() {
           </div>
         </div>
 
-        <section className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-          <div className="rounded-3xl border border-white/50 bg-white/40 p-6 shadow-[0_8px_30px_rgb(251,113,133,0.1)] backdrop-blur-md">
-            <div className="space-y-4">
-              <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-black/10 bg-zinc-900/90">
+        <section className="flex flex-col gap-10">
+          <div className="flex flex-col gap-6 rounded-[3rem] border-4 border-white/50 bg-white/40 p-8 shadow-[0_10px_40px_rgb(251,113,133,0.15)] backdrop-blur-xl">
+            <div className="space-y-6">
+              <div className="relative aspect-video w-full overflow-hidden rounded-[2rem] border-4 border-white/60 bg-zinc-900/90 shadow-inner">
                 {sourceVideoUrl ? (
                     <video
                     ref={videoRef}
@@ -284,9 +285,10 @@ export default function SongPage() {
                     }}
                   />
                 ) : (
-                  <div className="flex h-full flex-col items-center justify-center gap-2 text-center text-sm text-white/80">
-                    <p className="text-base font-semibold text-white">Video musical</p>
-                    <p className="max-w-xs text-xs text-white/60">
+                  <div className="flex h-full flex-col items-center justify-center gap-4 text-center text-sm text-white/80">
+                    <Music2 className="h-16 w-16 text-rose-300 opacity-50 animate-bounce" />
+                    <p className="text-xl font-bold text-white">Escenario Mágico</p>
+                    <p className="max-w-xs text-sm text-white/60">
                       Sube un archivo de video para probar la interfaz.
                     </p>
                   </div>
@@ -397,37 +399,36 @@ export default function SongPage() {
                 />
               ) : null}
 
-              <div className="rounded-2xl border border-white/40 bg-white/50 p-4 shadow-sm backdrop-blur-sm">
-                <div className="flex flex-wrap items-center gap-3">
+              <div className="rounded-[2rem] border-2 border-white/50 bg-white/60 p-6 shadow-sm backdrop-blur-sm">
+                <div className="flex flex-wrap items-center justify-center gap-6">
                   <button
-                    className="rounded-full bg-zinc-900 px-6 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white transition-all duration-300 hover:scale-105 hover:bg-rose-500 hover:shadow-[0_0_15px_rgb(251,113,133,0.4)] disabled:opacity-50 disabled:hover:scale-100 disabled:hover:bg-zinc-900 disabled:hover:shadow-none"
-                    type="button"
-                    onClick={() => setIsPlaying((prev) => !prev)}
-                    disabled={!sourceVideoUrl}
-                  >
-                    {isPlaying ? "Pausa" : "Play"}
-                  </button>
-                  <button
-                    className="rounded-full border border-white/50 bg-white/60 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-zinc-700 transition-all hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 disabled:opacity-50 backdrop-blur-sm"
+                    className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-rose-200 bg-white text-rose-500 transition-all hover:scale-110 hover:border-rose-400 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
                     type="button"
                     onClick={() => handleSeek(-10)}
                     disabled={!sourceVideoUrl}
                   >
-                    -10s
+                    <Rewind className="h-6 w-6" />
                   </button>
                   <button
-                    className="rounded-full border border-white/50 bg-white/60 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-zinc-700 transition-all hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 disabled:opacity-50 backdrop-blur-sm"
+                    className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-r from-rose-400 to-pink-500 text-white shadow-[0_0_20px_rgb(251,113,133,0.5)] transition-all duration-300 hover:scale-110 hover:shadow-[0_0_30px_rgb(251,113,133,0.8)] disabled:opacity-50 disabled:hover:scale-100"
+                    type="button"
+                    onClick={() => setIsPlaying((prev) => !prev)}
+                    disabled={!sourceVideoUrl}
+                  >
+                    {isPlaying ? <Pause className="h-10 w-10 fill-current" /> : <Play className="h-10 w-10 fill-current ml-2" />}
+                  </button>
+                  <button
+                    className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-rose-200 bg-white text-rose-500 transition-all hover:scale-110 hover:border-rose-400 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
                     type="button"
                     onClick={() => handleSeek(10)}
                     disabled={!sourceVideoUrl}
                   >
-                    +10s
+                    <FastForward className="h-6 w-6" />
                   </button>
-                  <span className="text-xs text-zinc-500">
-                    {currentTime.toFixed(1)}s / {duration.toFixed(1)}s
-                  </span>
                 </div>
-                <input
+                <div className="mt-6 flex items-center gap-4 text-xs font-bold text-rose-400">
+                  <span>{currentTime.toFixed(1)}s</span>
+                  <input
                   className="mt-4 w-full"
                   type="range"
                   min={0}
@@ -440,20 +441,25 @@ export default function SongPage() {
                     if (videoRef.current) videoRef.current.currentTime = value;
                   }}
                 />
+                <div className="mt-2 text-right text-xs font-bold text-rose-400">
+                  {duration.toFixed(1)}s
+                </div>
               </div>
             </div>
           </div>
+        </div>
 
-          <div className="flex flex-col gap-4 rounded-3xl border border-white/50 bg-white/40 p-6 shadow-[0_8px_30px_rgb(251,113,133,0.1)] backdrop-blur-md">
-            <div className="space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-600">
-                Letras
-              </p>
-              <p className="text-lg font-semibold text-zinc-900">{song.title}</p>
-              <p className="text-sm text-zinc-600">{song.artist}</p>
+          <div className="flex flex-col items-center gap-8 rounded-[3rem] border-4 border-white/50 bg-white/40 p-10 shadow-[0_10px_40px_rgb(251,113,133,0.15)] backdrop-blur-xl">
+            <div className="flex flex-col items-center text-center space-y-2">
+              <div className="inline-flex items-center justify-center rounded-full bg-rose-100 p-3 text-rose-500 shadow-inner">
+                <HeartPulse className="h-8 w-8 animate-pulse" />
+              </div>
+              <h2 className="text-3xl font-black text-zinc-800 tracking-tight mt-2">{song.title}</h2>
+              <p className="text-lg font-medium text-rose-500/80">{song.artist}</p>
             </div>
-            <div className="rounded-2xl border border-white/40 bg-white/50 p-4 shadow-sm backdrop-blur-sm">
-              <div className="flex flex-col gap-2 text-sm">
+            
+            <div className="w-full max-w-4xl rounded-[2.5rem] border-2 border-white/60 bg-white/50 p-8 shadow-inner backdrop-blur-sm">
+              <div className="flex flex-col gap-6 text-center h-[50vh] overflow-y-auto overflow-x-hidden no-scrollbar scroll-smooth">
                 {lyrics.map((line, index) => {
                   const isActive = index === activeLyricIndex;
 
@@ -463,16 +469,19 @@ export default function SongPage() {
                       ref={(element) => {
                         lyricRefs.current[index] = element;
                       }}
-                      className={`rounded-lg px-3 py-2 transition-all duration-300 ${
+                      className={`transition-all duration-500 ease-out px-4 py-2 ${
                         isActive
-                          ? "bg-gradient-to-r from-rose-400 to-pink-500 text-white shadow-[0_0_15px_rgb(251,113,133,0.4)] scale-[1.02] font-medium"
-                          : "bg-white/40 text-zinc-700 hover:bg-white/60"
+                          ? "opacity-100"
+                          : "opacity-40 hover:opacity-60"
                       }`}
                     >
-                      <span className={`mr-2 text-xs font-semibold uppercase tracking-[0.2em] ${isActive ? "opacity-90" : "opacity-70"}`}>
-                        {line.time.toFixed(2)}
+                      <span className={`font-black tracking-tight transition-all duration-500 ${
+                        isActive 
+                          ? "text-3xl sm:text-5xl leading-tight bg-gradient-to-r from-rose-400 via-pink-500 to-rose-400 bg-clip-text text-transparent drop-shadow-[0_0_25px_rgb(251,113,133,0.8)]" 
+                          : "text-xl sm:text-3xl text-zinc-600"
+                      }`}>
+                        {line.text}
                       </span>
-                      {line.text}
                     </div>
                   );
                 })}
