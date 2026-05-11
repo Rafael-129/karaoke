@@ -14,10 +14,6 @@ const UPLOAD_DISPATCHER = new Agent({
 export async function POST(request: Request) {
   const formData = await request.formData();
   const file = formData.get("file");
-  const title = formData.get("title");
-  const artist = formData.get("artist");
-  const lyrics = formData.get("lyrics");
-  const tags = formData.get("tags");
 
   if (!file || !(file instanceof File)) {
     return NextResponse.json({ error: "Archivo faltante." }, { status: 400 });
@@ -27,7 +23,7 @@ export async function POST(request: Request) {
 
   if (file.size > MAX_BYTES) {
     return NextResponse.json(
-      { error: "Archivo demasiado grande (max 50MB)." },
+      { error: "Archivo demasiado grande (max 50MB por chunk)." },
       { status: 413 }
     );
   }
@@ -39,12 +35,16 @@ export async function POST(request: Request) {
     );
   }
 
+  // Forward ALL fields from the incoming FormData to the backend transparently.
+  // This preserves chunk-upload fields: job_id, chunk_index, total_chunks, as
+  // well as optional metadata fields: title, artist, lyrics, tags.
   const outbound = new FormData();
   outbound.append("file", file, filename);
-  outbound.append("title", typeof title === "string" ? title : file.name);
-  outbound.append("artist", typeof artist === "string" ? artist : "Artista nuevo");
-  outbound.append("lyrics", typeof lyrics === "string" ? lyrics : "");
-  outbound.append("tags", typeof tags === "string" ? tags : "subido");
+
+  for (const [key, value] of formData.entries()) {
+    if (key === "file") continue; // already appended above
+    outbound.append(key, value as string);
+  }
 
   const response = await fetch(`${BACKEND_URL}/separate`, {
     method: "POST",
