@@ -77,15 +77,14 @@ export default function CatalogPage() {
     <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_#fff1f2,_#fce7f3_50%,_#fdf2f8_100%)]">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-12">
         <header className="flex flex-col gap-4">
-          <div className="inline-flex w-fit items-center gap-3 rounded-full border border-white/50 bg-white/60 px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-zinc-700 backdrop-blur-sm">
-            Karaoke Lab
+          <div className="inline-flex w-fit items-center gap-3 rounded-full border border-rose-300 bg-rose-100/80 px-4 py-2 text-xs font-bold uppercase tracking-[0.25em] text-rose-600 backdrop-blur-sm shadow-[0_0_15px_rgb(251,113,133,0.3)]">
+            Feliz 1er Aniversario Mi Amor ❤️
           </div>
           <h1 className="text-4xl font-semibold tracking-tight text-zinc-950 sm:text-5xl">
-            Catalogo de canciones
+            Nuestro Cancionero Especial
           </h1>
           <p className="max-w-2xl text-base leading-7 text-zinc-700">
-            Las canciones salen del backend. Si vacias el catalogo, esta vista
-            quedara sin tarjetas hasta que subas una nueva.
+            Un pequeño regalo hecho con muchísimo amor. Sube nuestras canciones favoritas, quítales la voz automáticamente, y cantemos juntos hoy y siempre. ¡Te amo!
           </p>
         </header>
 
