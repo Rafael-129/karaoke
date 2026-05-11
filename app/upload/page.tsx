@@ -251,7 +251,7 @@ export default function UploadPage() {
           </div>
         </div>
 
-        <div className="rounded-3xl border border-black/10 bg-white/80 p-6 shadow-sm backdrop-blur">
+        <div className="rounded-3xl border border-white/50 bg-white/40 p-6 shadow-[0_8px_30px_rgb(251,113,133,0.1)] backdrop-blur-md">
           <div className="flex flex-col gap-4">
             <div>
               <h1 className="text-2xl font-semibold text-zinc-900">
@@ -263,7 +263,7 @@ export default function UploadPage() {
               </p>
             </div>
 
-            <div className="rounded-2xl border border-black/10 bg-white p-4">
+            <div className="rounded-2xl border border-white/40 bg-white/50 p-4 shadow-sm backdrop-blur-sm">
               <div className="flex flex-col gap-3">
                 <div className="grid gap-3 md:grid-cols-2">
                   <div className="flex flex-col gap-2">
@@ -405,7 +405,7 @@ export default function UploadPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-dashed border-black/20 bg-white p-4 text-sm text-zinc-700">
+            <div className="rounded-2xl border border-dashed border-rose-200 bg-white/50 p-4 text-sm text-zinc-700 backdrop-blur-sm">
               <p className="font-semibold text-zinc-900">Optimizaciones activas</p>
               <p className="mt-1 text-[11px]">
                 ⚡ Subida dividida en chunks de 5MB subidos en paralelo (máx 3 simultáneamente)

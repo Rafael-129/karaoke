@@ -77,7 +77,7 @@ export default function CatalogPage() {
     <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_#fff1f2,_#fce7f3_50%,_#fdf2f8_100%)]">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-12">
         <header className="flex flex-col gap-4">
-          <div className="inline-flex w-fit items-center gap-3 rounded-full border border-black/10 bg-white/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-zinc-700 backdrop-blur">
+          <div className="inline-flex w-fit items-center gap-3 rounded-full border border-white/50 bg-white/60 px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-zinc-700 backdrop-blur-sm">
             Karaoke Lab
           </div>
           <h1 className="text-4xl font-semibold tracking-tight text-zinc-950 sm:text-5xl">
@@ -89,7 +89,7 @@ export default function CatalogPage() {
           </p>
         </header>
 
-        <section className="rounded-3xl border border-black/10 bg-white/80 p-6 shadow-sm backdrop-blur">
+        <section className="rounded-3xl border border-white/50 bg-white/40 p-6 shadow-[0_8px_30px_rgb(251,113,133,0.1)] backdrop-blur-md">
             <div className="flex flex-col gap-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-lg font-semibold text-zinc-900">
@@ -102,7 +102,7 @@ export default function CatalogPage() {
 
               <div className="flex flex-wrap items-center gap-3">
                 <input
-                  className="h-11 flex-1 rounded-full border border-black/10 bg-white px-4 text-sm text-zinc-700 focus:outline-none"
+                  className="h-11 flex-1 rounded-full border border-white/60 bg-white/60 px-4 text-sm text-zinc-700 backdrop-blur-sm focus:border-rose-300 focus:outline-none focus:ring-2 focus:ring-rose-200/50"
                   placeholder="Buscar por titulo, artista o tag"
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
@@ -127,7 +127,7 @@ export default function CatalogPage() {
                   {filteredSongs.map((song) => (
                     <Link
                       key={song.id}
-                      className="group flex h-full flex-col justify-between gap-4 rounded-2xl border border-black/10 bg-white p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md"
+                      className="group flex h-full flex-col justify-between gap-4 rounded-2xl border border-white/50 bg-white/60 p-4 text-left transition hover:-translate-y-0.5 hover:shadow-[0_8px_30px_rgb(251,113,133,0.15)] backdrop-blur-sm"
                       href={`/musica/${song.id}`}
                     >
                       <div className="space-y-2">
