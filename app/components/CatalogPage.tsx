@@ -21,6 +21,10 @@ const mergeCatalog = (baseSongs: Song[], remoteSongs: Song[]) => {
   return merged;
 };
 
+const normalizeString = (str: string) => {
+  return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+};
+
 export default function CatalogPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [remoteSongs, setRemoteSongs] = useState<CatalogSong[]>([]);
@@ -65,12 +69,12 @@ export default function CatalogPage() {
   );
 
   const filteredSongs = catalogSongs.filter((song) => {
-    const query = searchQuery.trim().toLowerCase();
+    const query = normalizeString(searchQuery.trim());
     if (!query) return true;
     return (
-      song.title.toLowerCase().includes(query) ||
-      song.artist.toLowerCase().includes(query) ||
-      song.tags.some((tag) => tag.toLowerCase().includes(query))
+      normalizeString(song.title).includes(query) ||
+      normalizeString(song.artist).includes(query) ||
+      song.tags.some((tag) => normalizeString(tag).includes(query))
     );
   });
 
