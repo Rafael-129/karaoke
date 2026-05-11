@@ -74,7 +74,7 @@ export default function CatalogPage() {
   });
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#f7f2ff,_#e9f6ff_50%,_#fff8ec_100%)]">
+    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_#fff1f2,_#fce7f3_50%,_#fdf2f8_100%)]">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-12">
         <header className="flex flex-col gap-4">
           <div className="inline-flex w-fit items-center gap-3 rounded-full border border-black/10 bg-white/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-zinc-700 backdrop-blur">

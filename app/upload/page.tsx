@@ -237,7 +237,7 @@ export default function UploadPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#f7f2ff,_#e9f6ff_50%,_#fff8ec_100%)]">
+    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_#fff1f2,_#fce7f3_50%,_#fdf2f8_100%)]">
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-6 py-12">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Link
