@@ -462,6 +462,15 @@ export default function SongPage() {
               <div className="flex flex-col gap-6 text-center h-[50vh] overflow-y-auto overflow-x-hidden no-scrollbar scroll-smooth">
                 {lyrics.map((line, index) => {
                   const isActive = index === activeLyricIndex;
+                  const isPast = index < activeLyricIndex;
+                  const nextLine = lyrics[index + 1];
+                  const lineDuration = nextLine ? nextLine.time - line.time : 4;
+                  
+                  let bgPosX = "100%";
+                  if (isActive) {
+                    const progress = Math.max(0, Math.min(1, (currentTime - line.time) / lineDuration));
+                    bgPosX = `${100 - (progress * 100)}%`;
+                  }
 
                   return (
                     <div
@@ -470,16 +479,35 @@ export default function SongPage() {
                         lyricRefs.current[index] = element;
                       }}
                       className={`transition-all duration-500 ease-out px-4 py-2 ${
-                        isActive
+                        isActive || isPast
                           ? "opacity-100"
                           : "opacity-40 hover:opacity-60"
                       }`}
                     >
-                      <span className={`font-black tracking-tight transition-all duration-500 ${
-                        isActive 
-                          ? "text-3xl sm:text-5xl leading-tight bg-gradient-to-r from-rose-400 via-pink-500 to-rose-400 bg-clip-text text-transparent drop-shadow-[0_0_25px_rgb(251,113,133,0.8)]" 
-                          : "text-xl sm:text-3xl text-zinc-600"
-                      }`}>
+                      <span 
+                        className={`font-black tracking-tight transition-all duration-[50ms] ${
+                          isActive || isPast
+                            ? "text-3xl sm:text-5xl leading-tight drop-shadow-[0_0_25px_rgb(251,113,133,0.8)]" 
+                            : "text-xl sm:text-3xl text-zinc-600"
+                        }`}
+                        style={
+                          isActive 
+                            ? {
+                                backgroundImage: "linear-gradient(to right, #fb7185 0%, #ec4899 25%, #fb7185 50%, #a1a1aa 50%, #a1a1aa 100%)",
+                                backgroundSize: "200% 100%",
+                                backgroundPosition: `${bgPosX} 0`,
+                                WebkitBackgroundClip: "text",
+                                WebkitTextFillColor: "transparent",
+                              }
+                            : isPast
+                            ? {
+                                backgroundImage: "linear-gradient(to right, #fb7185, #ec4899)",
+                                WebkitBackgroundClip: "text",
+                                WebkitTextFillColor: "transparent",
+                              }
+                            : {}
+                        }
+                      >
                         {line.text}
                       </span>
                     </div>
