@@ -400,7 +400,7 @@ export default function SongPage() {
               <div className="rounded-2xl border border-white/40 bg-white/50 p-4 shadow-sm backdrop-blur-sm">
                 <div className="flex flex-wrap items-center gap-3">
                   <button
-                    className="rounded-full bg-zinc-900 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white"
+                    className="rounded-full bg-zinc-900 px-6 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white transition-all duration-300 hover:scale-105 hover:bg-rose-500 hover:shadow-[0_0_15px_rgb(251,113,133,0.4)] disabled:opacity-50 disabled:hover:scale-100 disabled:hover:bg-zinc-900 disabled:hover:shadow-none"
                     type="button"
                     onClick={() => setIsPlaying((prev) => !prev)}
                     disabled={!sourceVideoUrl}
@@ -408,7 +408,7 @@ export default function SongPage() {
                     {isPlaying ? "Pausa" : "Play"}
                   </button>
                   <button
-                    className="rounded-full border border-black/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-zinc-700"
+                    className="rounded-full border border-white/50 bg-white/60 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-zinc-700 transition-all hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 disabled:opacity-50 backdrop-blur-sm"
                     type="button"
                     onClick={() => handleSeek(-10)}
                     disabled={!sourceVideoUrl}
@@ -416,7 +416,7 @@ export default function SongPage() {
                     -10s
                   </button>
                   <button
-                    className="rounded-full border border-black/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-zinc-700"
+                    className="rounded-full border border-white/50 bg-white/60 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-zinc-700 transition-all hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 disabled:opacity-50 backdrop-blur-sm"
                     type="button"
                     onClick={() => handleSeek(10)}
                     disabled={!sourceVideoUrl}
@@ -463,10 +463,10 @@ export default function SongPage() {
                       ref={(element) => {
                         lyricRefs.current[index] = element;
                       }}
-                      className={`rounded-lg px-3 py-2 transition-all ${
+                      className={`rounded-lg px-3 py-2 transition-all duration-300 ${
                         isActive
-                          ? "bg-zinc-900 text-white shadow-md scale-[1.01]"
-                          : "bg-zinc-50 text-zinc-700"
+                          ? "bg-gradient-to-r from-rose-400 to-pink-500 text-white shadow-[0_0_15px_rgb(251,113,133,0.4)] scale-[1.02] font-medium"
+                          : "bg-white/40 text-zinc-700 hover:bg-white/60"
                       }`}
                     >
                       <span className={`mr-2 text-xs font-semibold uppercase tracking-[0.2em] ${isActive ? "opacity-90" : "opacity-70"}`}>

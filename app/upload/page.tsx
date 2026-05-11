@@ -329,7 +329,7 @@ export default function UploadPage() {
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
                   <button
-                    className="rounded-full bg-zinc-900 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white"
+                    className="rounded-full bg-zinc-900 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white transition-all duration-300 hover:scale-105 hover:bg-rose-500 hover:shadow-[0_0_15px_rgb(251,113,133,0.4)] disabled:opacity-50 disabled:hover:scale-100 disabled:hover:bg-zinc-900 disabled:hover:shadow-none"
                     onClick={handleUpload}
                     type="button"
                     disabled={uploadState.status === "uploading"}
@@ -344,18 +344,18 @@ export default function UploadPage() {
                 </div>
 
                 {uploadState.status === "uploading" && (
-                  <div className="flex flex-col gap-2 rounded-lg bg-blue-50 p-3">
+                  <div className="flex flex-col gap-2 rounded-lg bg-rose-50/50 p-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-blue-900">
+                      <span className="text-xs font-semibold text-rose-900">
                         {uploadState.statusMessage || "Procesando..."}
                       </span>
-                      <span className="text-xs font-semibold text-blue-700">
+                      <span className="text-xs font-semibold text-rose-700">
                         {Math.round(uploadState.progress ?? 0)}%
                       </span>
                     </div>
-                    <div className="h-2 w-full overflow-hidden rounded-full bg-blue-200">
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-rose-200">
                       <div
-                        className="h-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-300"
+                        className="h-full bg-gradient-to-r from-rose-400 to-pink-500 transition-all duration-300"
                         style={{ width: `${uploadState.progress ?? 0}%` }}
                       />
                     </div>
