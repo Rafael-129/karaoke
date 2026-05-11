@@ -1,16 +1,6 @@
 import { NextResponse } from "next/server";
 import { Agent } from "undici";
 
-// Allow up to 55 MB request bodies so 3 MB chunks pass through without truncation
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: "55mb",
-    },
-    responseLimit: "55mb",
-  },
-};
-
 const MAX_BYTES = 50 * 1024 * 1024;
 const BACKEND_URL = (process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "").replace(
   /\/+$/,
