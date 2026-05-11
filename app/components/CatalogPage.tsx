@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import { songs, type Song } from "../data/songs";
+import { Disc3, Heart, Music2 } from "lucide-react";
 
 type CatalogSong = Song;
 
@@ -122,48 +123,53 @@ export default function CatalogPage() {
               </div>
 
               {filteredSongs.length ? (
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                   {filteredSongs.map((song) => (
                     <Link
                       key={song.id}
-                      className="group flex h-full flex-col justify-between gap-4 rounded-2xl border border-white/50 bg-white/60 p-4 text-left transition hover:-translate-y-0.5 hover:shadow-[0_8px_30px_rgb(251,113,133,0.15)] backdrop-blur-sm"
+                      className="group flex h-full flex-col justify-between gap-4 rounded-[2.5rem] border-2 border-white/60 bg-white/70 p-6 text-left transition-all hover:-translate-y-1 hover:bg-white/90 hover:shadow-[0_10px_40px_rgb(251,113,133,0.2)] backdrop-blur-md"
                       href={`/musica/${song.id}`}
                     >
-                      <div className="space-y-2">
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <h3 className="text-base font-semibold text-zinc-900">
-                              {song.title}
-                            </h3>
-                            <p className="text-sm text-zinc-600">{song.artist}</p>
+                      <div className="space-y-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center justify-center h-12 w-12 rounded-full bg-rose-100 text-rose-500 shadow-inner">
+                            <Disc3 className="h-6 w-6 group-hover:animate-[spin_4s_linear_infinite]" />
                           </div>
-                          <span className="rounded-full bg-zinc-900 px-2 py-1 text-xs font-semibold text-white">
+                          <span className="rounded-full bg-rose-500/10 px-3 py-1 text-xs font-bold text-rose-600">
                             {song.duration}
                           </span>
                         </div>
-                        <p className="rounded-lg bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
-                          {song.lrcPreview}
+                        <div>
+                          <h3 className="text-xl font-bold text-zinc-800 line-clamp-1">
+                            {song.title}
+                          </h3>
+                          <p className="text-sm font-medium text-rose-400/80">{song.artist}</p>
+                        </div>
+                        <p className="rounded-2xl bg-rose-50/50 px-4 py-3 text-xs font-medium text-zinc-600 italic">
+                          "{song.lrcPreview || "Canción sin letra..."}"
                         </p>
                       </div>
-                      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-600">
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-medium text-zinc-500">
                         <div className="flex gap-2">
                           {song.tags.map((tag) => (
                             <span
                               key={tag}
-                              className="rounded-full border border-black/10 px-2 py-1"
+                              className="rounded-full bg-white/80 px-3 py-1 shadow-sm"
                             >
                               {tag}
                             </span>
                           ))}
                         </div>
-                        <span>{song.bpm ? `${song.bpm} bpm` : "nuevo"}</span>
+                        <Heart className="h-4 w-4 text-rose-300" />
                       </div>
                     </Link>
                   ))}
                 </div>
               ) : (
-                <div className="rounded-2xl border border-dashed border-black/15 bg-zinc-50 px-4 py-8 text-center text-sm text-zinc-600">
-                  No hay canciones en el catalogo.
+                <div className="flex flex-col items-center justify-center gap-4 rounded-[2rem] border-2 border-dashed border-rose-200 bg-white/40 px-4 py-16 text-center text-rose-400 backdrop-blur-sm">
+                  <Music2 className="h-12 w-12 opacity-50" />
+                  <p className="text-lg font-medium">Aún no tenemos canciones aquí 🥺</p>
+                  <p className="text-sm text-rose-300">Sube una canción para empezar a cantar</p>
                 </div>
               )}
             </div>
