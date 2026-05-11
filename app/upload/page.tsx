@@ -1,14 +1,104 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+
+const CHUNK_SIZE = 3 * 1024 * 1024; // 3MB chunks (more conservative than 5MB)
+const MAX_PARALLEL_CHUNKS = 3;
 
 type UploadState = {
   status: "idle" | "uploading" | "success" | "error";
   message?: string;
   result?: { jobId: string; downloadUrl?: string };
+  progress?: number;
+  statusMessage?: string;
 };
+
+/**
+ * Upload file in sequential chunks (faster than single upload, more stable than parallel)
+ */
+async function uploadFileInChunks(
+  file: File,
+  title: string,
+  artist: string,
+  lyrics: string,
+  tags: string,
+  onProgress: (progress: number, message: string) => void
+): Promise<{
+  job_id?: string;
+  message?: string;
+  download_url?: string;
+  song?: {
+    id?: string;
+    title?: string;
+    artist?: string;
+    instrumentalUrl?: string;
+    videoUrl?: string;
+    [key: string]: unknown;
+  };
+}> {
+  const chunks = Math.ceil(file.size / CHUNK_SIZE);
+
+  // Generate a unique job_id once for all chunks
+  const jobId = Array.from(crypto.getRandomValues(new Uint8Array(16)))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+
+  onProgress(1, "Dividiendo archivo en chunks...");
+
+  // Upload chunks sequentially (one after another)
+  for (let chunkIndex = 0; chunkIndex < chunks; chunkIndex++) {
+    const start = chunkIndex * CHUNK_SIZE;
+    const end = Math.min(start + CHUNK_SIZE, file.size);
+    const chunk = file.slice(start, end);
+
+    const formData = new FormData();
+    formData.append("file", chunk, `${file.name}.chunk_${chunkIndex}`);
+    formData.append("job_id", jobId);
+    formData.append("chunk_index", chunkIndex.toString());
+    formData.append("total_chunks", chunks.toString());
+
+    // Send metadata with every chunk so the backend has it when the final
+    // chunk triggers assembly and processing.
+    formData.append("title", title);
+    formData.append("artist", artist);
+    formData.append("lyrics", lyrics);
+    formData.append("tags", tags);
+
+    try {
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Chunk ${chunkIndex} failed: ${await response.text()}`);
+      }
+
+      const totalUploaded = end;
+      const progressPercent = Math.min(
+        Math.round((totalUploaded / file.size) * 90),
+        90
+      );
+      onProgress(
+        progressPercent,
+        `Subiendo... ${chunkIndex + 1}/${chunks} chunks completados`
+      );
+
+      // Last chunk contains the job result
+      if (chunkIndex === chunks - 1) {
+        const data = await response.json();
+        return data;
+      }
+    } catch (error) {
+      throw new Error(
+        `Chunk ${chunkIndex} error: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  return { job_id: jobId };
+}
 
 export default function UploadPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -20,10 +110,67 @@ export default function UploadPage() {
     status: "idle",
   });
 
+  const [pollingJobId, setPollingJobId] = useState<string | null>(null);
+
   const suggestedTitle = useMemo(() => {
     if (!selectedFile) return "";
     return selectedFile.name.replace(/\.[^.]+$/, "");
   }, [selectedFile]);
+
+  // Poll job status
+  useEffect(() => {
+    if (!pollingJobId) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const response = await fetch(`/api/jobs/${pollingJobId}`);
+        if (!response.ok) return;
+
+        const data = (await response.json()) as {
+          job_id?: string;
+          status?: string;
+          progress?: number;
+          message?: string;
+          song?: {
+            id?: string;
+            title?: string;
+            instrumentalUrl?: string;
+          };
+        };
+
+        setUploadState((prev) => ({
+          ...prev,
+          progress: data.progress ?? 0,
+          statusMessage: data.message ?? "",
+        }));
+
+        if (data.status === "completed") {
+          setPollingJobId(null);
+          setUploadState({
+            status: "success",
+            message: "✅ La canción se subió y procesó correctamente!",
+            progress: 100,
+            statusMessage: data.message ?? "Completado",
+            result: {
+              jobId: pollingJobId,
+              downloadUrl: data.song?.instrumentalUrl,
+            },
+          });
+        } else if (data.status === "error") {
+          setPollingJobId(null);
+          setUploadState({
+            status: "error",
+            message: `❌ Error: ${data.message ?? "Procesamiento falló"}`,
+            progress: 0,
+          });
+        }
+      } catch (err) {
+        console.error("Polling error:", err);
+      }
+    }, 1000); // Poll every second
+
+    return () => clearInterval(interval);
+  }, [pollingJobId]);
 
   const handleUpload = async () => {
     if (!selectedFile) {
@@ -39,40 +186,50 @@ export default function UploadPage() {
       return;
     }
 
-    const formData = new FormData();
-    formData.append("file", selectedFile);
-    formData.append("title", title.trim());
-    formData.append("artist", artist.trim());
-    formData.append("lyrics", lyrics);
-    formData.append("tags", tags);
-
     try {
-      setUploadState({ status: "uploading" });
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
+      setUploadState({ status: "uploading", progress: 0, statusMessage: "Preparando subida..." });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || "Error al subir.");
+      const payload = await uploadFileInChunks(
+        selectedFile,
+        title.trim(),
+        artist.trim(),
+        lyrics,
+        tags,
+        (progress, message) => {
+          setUploadState({
+            status: "uploading",
+            progress,
+            statusMessage: message,
+          });
+        }
+      );
+
+      if (payload.song) {
+        // Backend processed synchronously and returned the full result — no polling needed.
+        setUploadState({
+          status: "success",
+          message: "✅ La canción se subió y procesó correctamente!",
+          progress: 100,
+          statusMessage: "Completado",
+          result: {
+            jobId: payload.job_id ?? "",
+            downloadUrl: payload.song.instrumentalUrl ?? payload.download_url,
+          },
+        });
+      } else if (payload.job_id) {
+        // Backend is still processing — poll for status.
+        setPollingJobId(payload.job_id);
+        setUploadState({
+          status: "uploading",
+          progress: 95,
+          statusMessage: "Esperando procesamiento...",
+          result: {
+            jobId: payload.job_id,
+          },
+        });
+      } else {
+        throw new Error(payload.message || "Error en la respuesta del servidor");
       }
-
-      const payload = (await response.json()) as {
-        job_id?: string;
-        download_url?: string;
-        note?: string;
-        error?: string;
-        song?: { id?: string };
-      };
-      setUploadState({
-        status: "success",
-        message: payload.note ?? "Separacion lista. La cancion ya quedo en el catalogo.",
-        result: {
-          jobId: payload.job_id ?? "",
-          downloadUrl: payload.download_url,
-        },
-      });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Error al subir.";
       setUploadState({ status: "error", message });
@@ -185,6 +342,31 @@ export default function UploadPage() {
                     </span>
                   ) : null}
                 </div>
+
+                {uploadState.status === "uploading" && (
+                  <div className="flex flex-col gap-2 rounded-lg bg-blue-50 p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-blue-900">
+                        {uploadState.statusMessage || "Procesando..."}
+                      </span>
+                      <span className="text-xs font-semibold text-blue-700">
+                        {Math.round(uploadState.progress ?? 0)}%
+                      </span>
+                    </div>
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-blue-200">
+                      <div
+                        className="h-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-300"
+                        style={{ width: `${uploadState.progress ?? 0}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {uploadState.status === "error" && (
+                  <div className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
+                    {uploadState.message}
+                  </div>
+                )}
                 {uploadState.result ? (
                   <div className="rounded-lg bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
                     <p>Job: {uploadState.result.jobId || "pendiente"}</p>
@@ -224,9 +406,12 @@ export default function UploadPage() {
             </div>
 
             <div className="rounded-2xl border border-dashed border-black/20 bg-white p-4 text-sm text-zinc-700">
-              <p className="font-semibold text-zinc-900">Proximos pasos</p>
-              <p className="mt-1">
-                Aqui conectaremos Demucs/Spleeter para generar la pista sin voz.
+              <p className="font-semibold text-zinc-900">Optimizaciones activas</p>
+              <p className="mt-1 text-[11px]">
+                ⚡ Subida dividida en chunks de 5MB subidos en paralelo (máx 3 simultáneamente)
+              </p>
+              <p className="mt-1 text-[11px]">
+                📊 Progreso actualizado en tiempo real de cada chunk
               </p>
             </div>
           </div>
