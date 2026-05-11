@@ -120,21 +120,22 @@ export default function SongPage() {
   const sourceVideoUrl = song?.videoUrl ?? videoUrl;
 
   useEffect(() => {
-    // If we have an instrumental audio, use it as the master playback and mute the video.
+    // The video element is purely VISUAL when an instrumental track exists.
+    // Audio playback is handled exclusively by the <audio> element.
     const videoEl = videoRef.current;
     const audioEl = audioRef.current;
 
-    if (audioEl && instrumentalReady) {
+    // Always keep video muted when we have an instrumental — do not wait for
+    // instrumentalReady to avoid the vocals-first flash.
+    if (videoEl && song?.instrumentalUrl) {
+      videoEl.muted = true;
+    }
+
+    if (audioEl && song?.instrumentalUrl) {
+      // Audio element drives playback
       if (isPlaying) {
         void audioEl.play();
-        if (videoEl) {
-          try {
-            videoEl.muted = true;
-            void videoEl.play();
-          } catch (e) {
-            // ignore
-          }
-        }
+        if (videoEl) void videoEl.play().catch(() => {});
       } else {
         audioEl.pause();
         if (videoEl) videoEl.pause();
@@ -142,16 +143,15 @@ export default function SongPage() {
       return;
     }
 
+    // No instrumental — video handles its own audio normally
     if (!videoEl || !sourceVideoUrl) return;
-    if (videoEl) {
-      videoEl.muted = false;
-    }
+    videoEl.muted = false;
     if (isPlaying) {
       void videoEl.play();
     } else {
       videoEl.pause();
     }
-  }, [isPlaying, sourceVideoUrl, instrumentalReady]);
+  }, [isPlaying, sourceVideoUrl, song?.instrumentalUrl]);
 
   useEffect(() => {
     return () => {
@@ -258,7 +258,7 @@ export default function SongPage() {
                     ref={videoRef}
                     src={sourceVideoUrl}
                     preload="auto"
-                      muted={Boolean(song?.instrumentalUrl && instrumentalReady)}
+                      muted={Boolean(song?.instrumentalUrl)}
                     className="h-full w-full object-cover"
                     onLoadedMetadata={(event) => {
                       const value = event.currentTarget.duration || 0;
