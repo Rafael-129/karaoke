@@ -84,7 +84,7 @@ export default function CatalogPage() {
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-12">
         <header className="flex flex-col gap-4">
           <div className="inline-flex w-fit items-center gap-3 rounded-full border border-rose-300 bg-rose-100/80 px-4 py-2 text-xs font-bold uppercase tracking-[0.25em] text-rose-600 backdrop-blur-sm shadow-[0_0_15px_rgb(251,113,133,0.3)]">
-            Feliz 1er Aniversario Mi Amor ❤️
+            Feliz 1er Aniversario Mi Reina Hermosa ❤️
           </div>
           <h1 className="text-4xl font-semibold tracking-tight text-zinc-950 sm:text-5xl">
             Nuestro Cancionero Especial

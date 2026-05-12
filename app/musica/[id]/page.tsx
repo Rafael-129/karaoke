@@ -564,9 +564,23 @@ export default function SongPage() {
             </div>
             
             <div className="w-full max-w-4xl rounded-[2.5rem] border-2 border-white/60 bg-white/50 p-8 shadow-inner backdrop-blur-sm">
-              <div id="lyrics-container" className="relative flex flex-col gap-6 text-center h-[50vh] overflow-y-auto overflow-x-hidden no-scrollbar scroll-smooth">
+              <div 
+                id="lyrics-container" 
+                className="relative flex flex-col gap-6 text-center h-[50vh] overflow-y-auto overflow-x-hidden no-scrollbar scroll-smooth p-4"
+                style={{
+                  maskImage: "linear-gradient(to bottom, transparent, black 25%, black 75%, transparent)",
+                  WebkitMaskImage: "linear-gradient(to bottom, transparent, black 25%, black 75%, transparent)",
+                }}
+              >
                 {lyrics.map((line, index) => {
                   const isActive = index === activeLyricIndex;
+                  const distance = Math.abs(index - activeLyricIndex);
+                  
+                  // Calculamos el nivel de "foco" basado en la distancia
+                  const opacity = index === activeLyricIndex ? 1 : Math.max(0.1, 1 - distance * 0.3);
+                  const scale = index === activeLyricIndex ? 1 : Math.max(0.7, 1 - distance * 0.1);
+                  const blur = index === activeLyricIndex ? 0 : Math.min(4, distance * 1.5);
+                  
                   const isPast = index < activeLyricIndex;
                   const nextLine = lyrics[index + 1];
                   const lineDuration = nextLine ? nextLine.time - line.time : 4;
@@ -583,17 +597,18 @@ export default function SongPage() {
                       ref={(element) => {
                         lyricRefs.current[index] = element;
                       }}
-                      className={`transition-all duration-500 ease-out px-4 py-2 ${
-                        isActive || isPast
-                          ? "opacity-100"
-                          : "opacity-40 hover:opacity-60"
-                      }`}
+                      className={`transition-all duration-700 ease-in-out px-4 py-4`}
+                      style={{
+                        opacity: opacity,
+                        transform: `scale(${scale})`,
+                        filter: `blur(${blur}px)`,
+                      }}
                     >
                       <div 
                         className={`font-black tracking-tight transition-all duration-[50ms] flex flex-wrap justify-center ${
                           isActive || isPast
-                            ? "text-3xl sm:text-5xl leading-tight drop-shadow-[0_0_25px_rgb(251,113,133,0.4)]" 
-                            : "text-xl sm:text-3xl text-zinc-400"
+                            ? "text-3xl sm:text-5xl leading-tight drop-shadow-[0_0_25px_rgb(251,113,133,0.3)]" 
+                            : "text-xl sm:text-3xl"
                         }`}
                       >
                         {line.words.map((word, wIndex) => {
