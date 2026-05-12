@@ -376,39 +376,52 @@ export default function UploadPage() {
                     {uploadState.message}
                   </div>
                 )}
-                {uploadState.result ? (
-                  <div className="rounded-lg bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
-                    <p>Job: {uploadState.result.jobId || "pendiente"}</p>
-                    {uploadState.result.downloadUrl ? (
-                      <a
-                        className="mt-1 inline-flex text-xs font-semibold text-zinc-900 underline"
-                        href={uploadState.result.downloadUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        Descargar instrumental
-                      </a>
-                    ) : null}
-                    {uploadState.result.jobId ? (
+                {uploadState.result && uploadState.status === "success" ? (
+                  <div className="mt-4 flex flex-col gap-6 rounded-3xl bg-rose-50/50 p-6 border-2 border-rose-100 shadow-inner">
+                    <div className="flex flex-col items-center text-center gap-2">
+                      <div className="bg-white rounded-full p-3 shadow-sm border border-rose-100">
+                        <Sparkles className="h-6 w-6 text-rose-500 animate-pulse" />
+                      </div>
+                      <p className="text-sm font-bold text-zinc-800">¡Canción procesada con éxito!</p>
+                      <p className="text-[10px] uppercase tracking-widest text-rose-400 font-bold">ID: {uploadState.result.jobId}</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      {uploadState.result.downloadUrl && (
+                        <a
+                          className="flex items-center justify-center gap-2 rounded-2xl bg-white border border-rose-200 px-4 py-3 text-xs font-bold text-rose-600 transition-all hover:bg-rose-50 hover:shadow-md active:scale-95"
+                          href={uploadState.result.downloadUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          <CloudUpload className="h-4 w-4" />
+                          Bajar Instrumental
+                        </a>
+                      )}
+                      {uploadState.result.jobId && (
+                        <Link
+                          className="flex items-center justify-center gap-2 rounded-2xl bg-rose-500 px-4 py-3 text-xs font-bold text-white shadow-[0_5px_15px_rgb(251,113,133,0.3)] transition-all hover:bg-rose-600 hover:shadow-lg active:scale-95"
+                          href={`/musica/${uploadState.result.jobId}`}
+                        >
+                          <Music className="h-4 w-4" />
+                          ¡A Cantar Ahora!
+                        </Link>
+                      )}
                       <Link
-                        className="mt-1 inline-flex text-xs font-semibold text-zinc-900 underline"
-                        href={`/musica/${uploadState.result.jobId}`}
+                        className="flex items-center justify-center gap-2 rounded-2xl bg-zinc-900 px-4 py-3 text-xs font-bold text-white transition-all hover:bg-zinc-800 sm:col-span-2"
+                        href="/catalogo"
                       >
-                        Ver en el catalogo
+                        Ver el Catálogo
                       </Link>
-                    ) : null}
-                    <Link
-                      className="mt-1 inline-flex text-xs font-semibold text-zinc-900 underline"
-                      href="/catalogo"
-                    >
-                      Ir al catalogo
-                    </Link>
-                    {selectedFile ? (
-                      <p className="mt-1 text-[11px] text-zinc-500">
-                        {selectedFile.name} · {Math.round(selectedFile.size / 1024)}kb ·{" "}
-                        {selectedFile.type || "archivo"}
-                      </p>
-                    ) : null}
+                    </div>
+
+                    {selectedFile && (
+                      <div className="flex items-center justify-center gap-2 text-[10px] text-zinc-400 font-medium">
+                        <span>{selectedFile.name}</span>
+                        <span className="h-1 w-1 rounded-full bg-zinc-300"></span>
+                        <span>{Math.round(selectedFile.size / 1024)}kb</span>
+                      </div>
+                    )}
                   </div>
                 ) : null}
               </div>
