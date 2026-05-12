@@ -7,9 +7,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { type Song, songs } from "../../data/songs";
 import { Play, Pause, Rewind, FastForward, HeartPulse, Sparkles, Music2 } from "lucide-react";
 
+type LrcWord = {
+  text: string;
+  startTime: number;
+  endTime: number;
+};
+
 type LrcLine = {
   time: number;
+  endTime: number;
   text: string;
+  words: LrcWord[];
 };
 
 const parseLrc = (raw: string): LrcLine[] => {
@@ -18,12 +26,12 @@ const parseLrc = (raw: string): LrcLine[] => {
     .map((line) => line.trim())
     .filter(Boolean);
 
-  const entries: LrcLine[] = [];
+  const rawEntries: { time: number; text: string }[] = [];
 
   for (const line of lines) {
     const match = line.match(/\[(\d{2}):(\d{2})(?:\.(\d{1,2}))?\]\s*(.*)/);
     if (!match) {
-      entries.push({ time: entries.length, text: line });
+      rawEntries.push({ time: rawEntries.length, text: line });
       continue;
     }
 
@@ -33,10 +41,75 @@ const parseLrc = (raw: string): LrcLine[] => {
     const text = match[4]?.trim() ?? "";
 
     const time = minutes * 60 + seconds + centiseconds / 100;
-    entries.push({ time, text });
+    rawEntries.push({ time, text });
   }
 
-  return entries.sort((a, b) => a.time - b.time);
+  rawEntries.sort((a, b) => a.time - b.time);
+
+  const entries: LrcLine[] = [];
+
+  for (let i = 0; i < rawEntries.length; i++) {
+    const current = rawEntries[i];
+    const next = rawEntries[i + 1];
+    
+    // Si no hay siguiente línea, le damos 5 segundos de duración por defecto
+    const lineEndTime = next ? next.time : current.time + 5;
+    const duration = lineEndTime - current.time;
+    
+    const wordsRaw = current.text.split(/(<\d{2}:\d{2}\.\d{2}>[^<]*)/).filter(w => w.trim().length > 0);
+    const hasWordTimestamps = current.text.includes("<") && current.text.includes(">");
+    const totalChars = current.text.replace(/<\d{2}:\d{2}\.\d{2}>/g, "").length || 1;
+    
+    let currentWordTime = current.time;
+    const words: LrcWord[] = [];
+    
+    if (hasWordTimestamps) {
+      for (const part of wordsRaw) {
+        const match = part.match(/<(\d{2}):(\d{2})\.(\d{2})>(.*)/);
+        if (match) {
+          const m = Number(match[1]);
+          const s = Number(match[2]);
+          const c = Number(match[3]);
+          const wTime = m * 60 + s + c / 100;
+          const wText = match[4].trim();
+          
+          if (words.length > 0) {
+            words[words.length - 1].endTime = wTime;
+          }
+          
+          words.push({
+            text: wText,
+            startTime: wTime,
+            endTime: lineEndTime // Temporalmente el final de la línea
+          });
+        }
+      }
+    } else {
+      // Fallback: Interpolación por longitud
+      const wordsSimple = current.text.split(/(\s+)/).filter(w => w.length > 0);
+      for (const w of wordsSimple) {
+        const wordDuration = (w.length / totalChars) * duration;
+        const wordEndTime = currentWordTime + wordDuration;
+        
+        words.push({
+          text: w,
+          startTime: currentWordTime,
+          endTime: wordEndTime
+        });
+        
+        currentWordTime = wordEndTime;
+      }
+    }
+
+    entries.push({
+      time: current.time,
+      endTime: lineEndTime,
+      text: current.text.replace(/<\d{2}:\d{2}\.\d{2}>/g, ""),
+      words: words
+    });
+  }
+
+  return entries;
 };
 
 const BACKEND_DEMO_FALLBACK = songs;
@@ -59,6 +132,7 @@ export default function SongPage() {
   const [duration, setDuration] = useState(0);
   const [instrumentalReady, setInstrumentalReady] = useState(false);
   const [isVideoReady, setIsVideoReady] = useState(false);
+  const [heartPos, setHeartPos] = useState({ x: 0, y: 0, opacity: 0 });
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lyricRefs = useRef<Array<HTMLDivElement | null>>([]);
@@ -137,7 +211,13 @@ export default function SongPage() {
       // Audio element drives playback
       if (isPlaying) {
         void audioEl.play();
-        if (videoEl) void videoEl.play().catch(() => {});
+        if (videoEl) {
+          // Si el video está muy lejos del audio al arrancar, lo sincronizamos una sola vez
+          if (videoEl.readyState >= 2 && Math.abs(videoEl.currentTime - audioEl.currentTime) > 2) {
+             videoEl.currentTime = audioEl.currentTime;
+          }
+          void videoEl.play().catch(() => {});
+        }
       } else {
         audioEl.pause();
         if (videoEl) videoEl.pause();
@@ -169,6 +249,41 @@ export default function SongPage() {
       block: "center",
     });
   }, [activeLyricIndex]);
+
+  // Track active word position for the bouncing heart
+  useEffect(() => {
+    const activeLine = lyrics[activeLyricIndex];
+    if (!activeLine) {
+      setHeartPos((prev) => ({ ...prev, opacity: 0 }));
+      return;
+    }
+
+    const activeWordIndex = activeLine.words.findIndex(
+      (w) => currentTime >= w.startTime && currentTime <= w.endTime
+    );
+
+    if (activeWordIndex === -1) {
+      // If no word is strictly active but line is, stay on last word or hide?
+      // Let's just hide it if not strictly active to avoid jumping back
+      return;
+    }
+
+    const wordEl = document.getElementById(`word-${activeLyricIndex}-${activeWordIndex}`);
+    const containerEl = document.getElementById("lyrics-container");
+    
+    if (wordEl && containerEl) {
+      const wordRect = wordEl.getBoundingClientRect();
+      const containerRect = containerEl.getBoundingClientRect();
+      
+      setHeartPos({
+        x: wordRect.left - containerRect.left + wordRect.width / 2 + containerEl.scrollLeft,
+        y: wordRect.top - containerRect.top - 5 + containerEl.scrollTop,
+        opacity: 1,
+      });
+    } else {
+       setHeartPos((prev) => ({ ...prev, opacity: 0 }));
+    }
+  }, [currentTime, activeLyricIndex, lyrics]);
 
   const handleSeek = (offset: number) => {
     const audioEl = audioRef.current;
@@ -279,7 +394,6 @@ export default function SongPage() {
                       setIsVideoReady(true);
                     }}
                     onCanPlay={() => setIsVideoReady(true)}
-                    onWaiting={() => setIsVideoReady(false)}
                     onTimeUpdate={(event) => {
                       // Only update state if there is no instrumental (master) audio
                       if (!song?.instrumentalUrl) {
@@ -396,7 +510,8 @@ export default function SongPage() {
                   onTimeUpdate={(event) => {
                     const t = event.currentTarget.currentTime;
                     setCurrentTime(t);
-                    if (videoRef.current && Math.abs(videoRef.current.currentTime - t) > 0.5) {
+                    // Increase threshold to 1 second to avoid micro-stutters
+                    if (videoRef.current && Math.abs(videoRef.current.currentTime - t) > 1.0) {
                       try {
                         videoRef.current.currentTime = t;
                       } catch (e) {
@@ -480,9 +595,23 @@ export default function SongPage() {
             </div>
             
             <div className="w-full max-w-4xl rounded-[2.5rem] border-2 border-white/60 bg-white/50 p-8 shadow-inner backdrop-blur-sm">
-              <div className="flex flex-col gap-6 text-center h-[50vh] overflow-y-auto overflow-x-hidden no-scrollbar scroll-smooth">
+              <div 
+                id="lyrics-container" 
+                className="relative flex flex-col gap-6 text-center h-[50vh] overflow-y-auto overflow-x-hidden no-scrollbar scroll-smooth p-4"
+                style={{
+                  maskImage: "linear-gradient(to bottom, transparent, black 25%, black 75%, transparent)",
+                  WebkitMaskImage: "linear-gradient(to bottom, transparent, black 25%, black 75%, transparent)",
+                }}
+              >
                 {lyrics.map((line, index) => {
                   const isActive = index === activeLyricIndex;
+                  const distance = Math.abs(index - activeLyricIndex);
+                  
+                  // Calculamos el nivel de "foco" basado en la distancia
+                  const opacity = index === activeLyricIndex ? 1 : Math.max(0.1, 1 - distance * 0.3);
+                  const scale = index === activeLyricIndex ? 1 : Math.max(0.7, 1 - distance * 0.1);
+                  const blur = index === activeLyricIndex ? 0 : Math.min(4, distance * 1.5);
+                  
                   const isPast = index < activeLyricIndex;
                   const nextLine = lyrics[index + 1];
                   const lineDuration = nextLine ? nextLine.time - line.time : 4;
@@ -499,41 +628,79 @@ export default function SongPage() {
                       ref={(element) => {
                         lyricRefs.current[index] = element;
                       }}
-                      className={`transition-all duration-500 ease-out px-4 py-2 ${
-                        isActive || isPast
-                          ? "opacity-100"
-                          : "opacity-40 hover:opacity-60"
-                      }`}
+                      className={`transition-all duration-700 ease-in-out px-4 py-4`}
+                      style={{
+                        opacity: opacity,
+                        transform: `scale(${scale})`,
+                        filter: `blur(${blur}px)`,
+                      }}
                     >
-                      <span 
-                        className={`font-black tracking-tight transition-all duration-[50ms] ${
+                      <div 
+                        className={`font-black tracking-tight transition-all duration-[50ms] flex flex-wrap justify-center ${
                           isActive || isPast
-                            ? "text-3xl sm:text-5xl leading-tight drop-shadow-[0_0_25px_rgb(251,113,133,0.8)]" 
-                            : "text-xl sm:text-3xl text-zinc-600"
+                            ? "text-3xl sm:text-5xl leading-tight drop-shadow-[0_0_25px_rgb(251,113,133,0.3)]" 
+                            : "text-xl sm:text-3xl"
                         }`}
-                        style={
-                          isActive 
-                            ? {
-                                backgroundImage: "linear-gradient(to right, #fb7185 0%, #ec4899 25%, #fb7185 50%, #a1a1aa 50%, #a1a1aa 100%)",
-                                backgroundSize: "200% 100%",
-                                backgroundPosition: `${bgPosX} 0`,
-                                WebkitBackgroundClip: "text",
-                                WebkitTextFillColor: "transparent",
-                              }
-                            : isPast
-                            ? {
-                                backgroundImage: "linear-gradient(to right, #fb7185, #ec4899)",
-                                WebkitBackgroundClip: "text",
-                                WebkitTextFillColor: "transparent",
-                              }
-                            : {}
-                        }
                       >
-                        {line.text}
-                      </span>
+                        {line.words.map((word, wIndex) => {
+                          let wordBgPosX = "100%";
+                          const isWordPast = currentTime > word.endTime;
+                          const isWordActive = currentTime >= word.startTime && currentTime <= word.endTime;
+
+                          if (isWordActive) {
+                            const wordProgress = Math.max(0, Math.min(1, (currentTime - word.startTime) / (word.endTime - word.startTime)));
+                            wordBgPosX = `${100 - (wordProgress * 100)}%`;
+                          }
+
+                          return (
+                            <span
+                              key={`${index}-${wIndex}`}
+                              id={`word-${index}-${wIndex}`}
+                              className="relative inline-block transition-transform duration-300 mx-1"
+                              style={
+                                isWordActive
+                                  ? {
+                                      backgroundImage: "linear-gradient(to right, #fb7185 0%, #ec4899 50%, #a1a1aa 50%, #a1a1aa 100%)",
+                                      backgroundSize: "200% 100%",
+                                      backgroundPosition: `${wordBgPosX} 0`,
+                                      WebkitBackgroundClip: "text",
+                                      WebkitTextFillColor: "transparent",
+                                      transform: "scale(1.2)",
+                                    }
+                                  : isWordPast || isPast
+                                  ? {
+                                      backgroundImage: "linear-gradient(to right, #fb7185, #ec4899)",
+                                      WebkitBackgroundClip: "text",
+                                      WebkitTextFillColor: "transparent",
+                                    }
+                                  : {
+                                      color: "inherit"
+                                    }
+                              }
+                            >
+                              {word.text}
+                            </span>
+                          );
+                        })}
+                      </div>
                     </div>
                   );
                 })}
+
+                {/* Bouncing Heart Guide */}
+                <div 
+                  className="pointer-events-none absolute z-30 transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
+                  style={{
+                    left: `${heartPos.x}px`,
+                    top: `${heartPos.y}px`,
+                    opacity: heartPos.opacity,
+                    transform: `translate(-50%, -100%) scale(${heartPos.opacity})`,
+                  }}
+                >
+                  <div className="animate-bounce">
+                    <HeartPulse className="h-6 w-6 text-rose-500 fill-rose-500 drop-shadow-[0_0_10px_rgba(251,113,133,0.8)]" />
+                  </div>
+                </div>
               </div>
             </div>
 

@@ -30,6 +30,8 @@ export default function CatalogPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [remoteSongs, setRemoteSongs] = useState<CatalogSong[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [deletingSongId, setDeletingSongId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -68,6 +70,33 @@ export default function CatalogPage() {
     () => mergeCatalog(songs, remoteSongs),
     [remoteSongs]
   );
+  const remoteSongIds = useMemo(() => new Set(remoteSongs.map((song) => song.id)), [remoteSongs]);
+
+  const handleDeleteSong = async (songId: string, title: string) => {
+    const accepted = window.confirm(`Eliminar "${title}" del catalogo? Esta accion no se puede deshacer.`);
+    if (!accepted) return;
+
+    setDeleteError(null);
+    setDeletingSongId(songId);
+
+    try {
+      const response = await fetch(`/api/catalog/${songId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => ({}))) as { error?: string };
+        throw new Error(payload.error || "No se pudo eliminar la cancion.");
+      }
+
+      setRemoteSongs((currentSongs) => currentSongs.filter((song) => song.id !== songId));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "No se pudo eliminar la cancion.";
+      setDeleteError(message);
+    } finally {
+      setDeletingSongId(null);
+    }
+  };
 
   const filteredSongs = catalogSongs.filter((song) => {
     const query = normalizeString(searchQuery.trim());
@@ -84,7 +113,7 @@ export default function CatalogPage() {
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-12">
         <header className="flex flex-col gap-4">
           <div className="inline-flex w-fit items-center gap-3 rounded-full border border-rose-300 bg-rose-100/80 px-4 py-2 text-xs font-bold uppercase tracking-[0.25em] text-rose-600 backdrop-blur-sm shadow-[0_0_15px_rgb(251,113,133,0.3)]">
-            Feliz 1er Aniversario Mi Amor ❤️
+            Feliz 1er Aniversario Mi Reina Hermosa ❤️
           </div>
           <h1 className="text-4xl font-semibold tracking-tight text-zinc-950 sm:text-5xl">
             Nuestro Cancionero Especial
@@ -130,17 +159,22 @@ export default function CatalogPage() {
                 </Link>
               </div>
 
+              {deleteError ? (
+                <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-700">
+                  {deleteError}
+                </div>
+              ) : null}
+
               {filteredSongs.length ? (
                 <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                   {filteredSongs.map((song) => (
-                    <Link
+                    <div
                       key={song.id}
-                      className="group flex h-full flex-col justify-between gap-4 rounded-[2.5rem] border-2 border-white/60 bg-white/70 p-6 text-left transition-all hover:-translate-y-1 hover:bg-white/90 hover:shadow-[0_10px_40px_rgb(251,113,133,0.2)] backdrop-blur-md"
-                      href={`/musica/${song.id}`}
+                      className="flex h-full flex-col justify-between gap-4 rounded-[2.5rem] border-2 border-white/60 bg-white/70 p-6 text-left transition-all hover:-translate-y-1 hover:bg-white/90 hover:shadow-[0_10px_40px_rgb(251,113,133,0.2)] backdrop-blur-md"
                     >
-                      <div className="space-y-4">
+                      <Link className="group space-y-4" href={`/musica/${song.id}`}>
                         <div className="flex items-start justify-between gap-3">
-                          <div className="flex items-center justify-center h-12 w-12 rounded-full bg-rose-100 text-rose-500 shadow-inner">
+                          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-rose-500 shadow-inner">
                             <Disc3 className="h-6 w-6 group-hover:animate-[spin_4s_linear_infinite]" />
                           </div>
                           <span className="rounded-full bg-rose-500/10 px-3 py-1 text-xs font-bold text-rose-600">
@@ -156,8 +190,9 @@ export default function CatalogPage() {
                         <p className="rounded-2xl bg-rose-50/50 px-4 py-3 text-xs font-medium text-zinc-600 italic">
                           "{song.lrcPreview || "Canción sin letra..."}"
                         </p>
-                      </div>
-                      <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-medium text-zinc-500">
+                      </Link>
+
+                      <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-medium text-zinc-500">
                         <div className="flex gap-2">
                           {song.tags.map((tag) => (
                             <span
@@ -168,9 +203,21 @@ export default function CatalogPage() {
                             </span>
                           ))}
                         </div>
-                        <Heart className="h-4 w-4 text-rose-300" />
+                        <div className="flex items-center gap-2">
+                          <Heart className="h-4 w-4 text-rose-300" />
+                          {remoteSongIds.has(song.id) ? (
+                            <button
+                              className="rounded-full border border-rose-300 bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-70"
+                              type="button"
+                              onClick={() => void handleDeleteSong(song.id, song.title)}
+                              disabled={deletingSongId === song.id}
+                            >
+                              {deletingSongId === song.id ? "Eliminando..." : "Eliminar"}
+                            </button>
+                          ) : null}
+                        </div>
                       </div>
-                    </Link>
+                    </div>
                   ))}
                 </div>
               ) : (
