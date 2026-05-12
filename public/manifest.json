@@ -1,0 +1,22 @@
+{
+  "name": "Karaoke de Aniversario",
+  "short_name": "Karaoke",
+  "description": "Nuestras canciones favoritas para cantar juntos por siempre.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fff1f2",
+  "theme_color": "#fb7185",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}
