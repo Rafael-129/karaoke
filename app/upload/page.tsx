@@ -311,7 +311,7 @@ export default function UploadPage() {
                     {selectedFile ? selectedFile.name : "Toca aquí para elegir tu canción ☁️"}
                   </p>
                   <p className="mt-1 text-sm font-medium text-rose-400/80">
-                    {selectedFile ? "¡Perfecto! Ahora ponle un lindo título 👇" : "Audio o Video (mp3, wav, mp4)"}
+                    {selectedFile ? "¡Perfecto!" : "Audio o Video (mp3, wav, mp4)"}
                   </p>
                 </div>
                 <div className="flex flex-col gap-2">

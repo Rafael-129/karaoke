@@ -133,6 +133,7 @@ export default function SongPage() {
   const [instrumentalReady, setInstrumentalReady] = useState(false);
   const [isVideoReady, setIsVideoReady] = useState(false);
   const [heartPos, setHeartPos] = useState({ x: 0, y: 0, opacity: 0 });
+  const [containerOffset, setContainerOffset] = useState(0);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lyricRefs = useRef<Array<HTMLDivElement | null>>([]);
@@ -212,7 +213,7 @@ export default function SongPage() {
       if (isPlaying) {
         void audioEl.play();
         if (videoEl) {
-          // Si el video está muy lejos del audio al arrancar, lo sincronizamos una sola vez
+          // Si el video est muy lejos del audio al arrancar, lo sincronizamos una sola vez
           if (videoEl.readyState >= 2 && Math.abs(videoEl.currentTime - audioEl.currentTime) > 2) {
              videoEl.currentTime = audioEl.currentTime;
           }
@@ -242,12 +243,23 @@ export default function SongPage() {
   }, [videoUrl]);
 
   useEffect(() => {
-    if (activeLyricIndex < 0) return;
+    if (activeLyricIndex < 0) {
+      setContainerOffset(0);
+      return;
+    }
 
-    lyricRefs.current[activeLyricIndex]?.scrollIntoView({
-      behavior: "smooth",
-      block: "center",
-    });
+    const containerEl = document.getElementById("lyrics-container");
+    const activeEl = lyricRefs.current[activeLyricIndex];
+    
+    if (containerEl && activeEl) {
+      const containerHeight = containerEl.offsetHeight;
+      const activeHeight = activeEl.offsetHeight;
+      const activeTop = activeEl.offsetTop;
+      
+      // Calculamos cunto debemos mover la lista para que la lnea activa est al centro
+      const targetOffset = (containerHeight / 2) - (activeTop + activeHeight / 2);
+      setContainerOffset(targetOffset);
+    }
   }, [activeLyricIndex]);
 
   // Track active word position for the bouncing heart
@@ -362,7 +374,7 @@ export default function SongPage() {
             Volver al catalogo
           </Link>
           <div className="rounded-full border border-black/10 bg-white px-4 py-2 text-xs text-zinc-600">
-            {song.title} · {song.artist}
+            {song.title}  {song.artist}
           </div>
         </div>
 
@@ -408,7 +420,7 @@ export default function SongPage() {
                 ) : (
                   <div className="flex h-full flex-col items-center justify-center gap-4 text-center text-sm text-white/80">
                     <Music2 className="h-16 w-16 text-rose-300 opacity-50 animate-bounce" />
-                    <p className="text-xl font-bold text-white">Escenario Mágico</p>
+                    <p className="text-xl font-bold text-white">Escenario Mgico</p>
                     <p className="max-w-xs text-sm text-white/60">
                       Sube un archivo de video para probar la interfaz.
                     </p>
@@ -585,7 +597,7 @@ export default function SongPage() {
           </div>
         </div>
 
-          <div className="flex flex-col items-center gap-8 rounded-[3rem] border-4 border-white/50 bg-white/40 p-10 shadow-[0_10px_40px_rgb(251,113,133,0.15)] backdrop-blur-xl">
+        <div className="flex flex-col items-center gap-8 rounded-[3rem] border-4 border-white/50 bg-white/40 p-10 shadow-[0_10px_40px_rgb(251,113,133,0.15)] backdrop-blur-xl">
             <div className="flex flex-col items-center text-center space-y-2">
               <div className="inline-flex items-center justify-center rounded-full bg-rose-100 p-3 text-rose-500 shadow-inner">
                 <HeartPulse className="h-8 w-8 animate-pulse" />
@@ -597,13 +609,45 @@ export default function SongPage() {
             <div className="w-full max-w-4xl rounded-[2.5rem] border-2 border-white/60 bg-white/50 p-8 shadow-inner backdrop-blur-sm">
               <div 
                 id="lyrics-container" 
-                className="relative flex flex-col gap-6 text-center h-[50vh] overflow-y-auto overflow-x-hidden no-scrollbar scroll-smooth p-4"
+                className="relative h-[50vh] overflow-hidden p-4"
                 style={{
                   maskImage: "linear-gradient(to bottom, transparent, black 25%, black 75%, transparent)",
                   WebkitMaskImage: "linear-gradient(to bottom, transparent, black 25%, black 75%, transparent)",
                 }}
               >
-                {lyrics.map((line, index) => {
+                <div 
+                  className="flex flex-col gap-6 text-center transition-transform duration-700 ease-in-out"
+                  style={{ transform: `translateY(${containerOffset}px)` }}
+                >
+                  {/* Countdown Dots */}
+                  {(() => {
+                    const nextLine = lyrics[activeLyricIndex + 1];
+                    const currentLine = lyrics[activeLyricIndex];
+                    if (!currentLine || !nextLine) return null;
+                    
+                    const gap = nextLine.time - currentLine.endTime;
+                    const timeLeft = nextLine.time - currentTime;
+                    
+                    // Solo mostramos cuenta regresiva si el hueco es > 2s y faltan < 3s para empezar
+                    if (gap > 2 && timeLeft > 0 && timeLeft < 3) {
+                      const dots = Math.ceil(timeLeft);
+                      return (
+                        <div className="flex justify-center gap-4 py-4 animate-pulse">
+                          {[...Array(3)].map((_, i) => (
+                            <div 
+                              key={i}
+                              className={`h-4 w-4 rounded-full transition-all duration-300 ${
+                                3 - i <= dots ? "bg-rose-500 scale-125 shadow-[0_0_15px_rgb(251,113,133,0.8)]" : "bg-rose-200"
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+
+                  {lyrics.map((line, index) => {
                   const isActive = index === activeLyricIndex;
                   const distance = Math.abs(index - activeLyricIndex);
                   
@@ -686,6 +730,7 @@ export default function SongPage() {
                     </div>
                   );
                 })}
+                </div>
 
                 {/* Bouncing Heart Guide */}
                 <div 
