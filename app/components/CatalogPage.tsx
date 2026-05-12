@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { songs, type Song } from "../data/songs";
 import { Disc3, Heart, Music2 } from "lucide-react";
+import MemoriesGallery from "./MemoriesGallery";
 
 type CatalogSong = Song;
 
@@ -93,7 +94,10 @@ export default function CatalogPage() {
           </p>
         </header>
 
-        <section className="rounded-3xl border border-white/50 bg-white/40 p-6 shadow-[0_8px_30px_rgb(251,113,133,0.1)] backdrop-blur-md">
+        {normalizeString(searchQuery.trim()) === "te amo mucho mi sandrita hermosa" ? (
+          <MemoriesGallery />
+        ) : (
+          <section className="rounded-3xl border border-white/50 bg-white/40 p-6 shadow-[0_8px_30px_rgb(251,113,133,0.1)] backdrop-blur-md">
             <div className="flex flex-col gap-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-lg font-semibold text-zinc-900">
@@ -173,11 +177,12 @@ export default function CatalogPage() {
                 <div className="flex flex-col items-center justify-center gap-4 rounded-[2rem] border-2 border-dashed border-rose-200 bg-white/40 px-4 py-16 text-center text-rose-400 backdrop-blur-sm">
                   <Music2 className="h-12 w-12 opacity-50" />
                   <p className="text-lg font-medium">Aún no tenemos canciones aquí 🥺</p>
-                  <p className="text-sm text-rose-300">Sube una canción para empezar a cantar</p>
+                  <p className="text-sm text-rose-300">No hay canciones en el catalogo.</p>
                 </div>
               )}
             </div>
           </section>
+        )}
       </div>
     </div>
   );
