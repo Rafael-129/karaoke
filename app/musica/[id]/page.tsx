@@ -107,6 +107,7 @@ export default function SongPage() {
   const [duration, setDuration] = useState(0);
   const [instrumentalReady, setInstrumentalReady] = useState(false);
   const [isVideoReady, setIsVideoReady] = useState(false);
+  const [heartPos, setHeartPos] = useState({ x: 0, y: 0, opacity: 0 });
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lyricRefs = useRef<Array<HTMLDivElement | null>>([]);
@@ -217,6 +218,41 @@ export default function SongPage() {
       block: "center",
     });
   }, [activeLyricIndex]);
+
+  // Track active word position for the bouncing heart
+  useEffect(() => {
+    const activeLine = lyrics[activeLyricIndex];
+    if (!activeLine) {
+      setHeartPos((prev) => ({ ...prev, opacity: 0 }));
+      return;
+    }
+
+    const activeWordIndex = activeLine.words.findIndex(
+      (w) => currentTime >= w.startTime && currentTime <= w.endTime
+    );
+
+    if (activeWordIndex === -1) {
+      // If no word is strictly active but line is, stay on last word or hide?
+      // Let's just hide it if not strictly active to avoid jumping back
+      return;
+    }
+
+    const wordEl = document.getElementById(`word-${activeLyricIndex}-${activeWordIndex}`);
+    const containerEl = document.getElementById("lyrics-container");
+    
+    if (wordEl && containerEl) {
+      const wordRect = wordEl.getBoundingClientRect();
+      const containerRect = containerEl.getBoundingClientRect();
+      
+      setHeartPos({
+        x: wordRect.left - containerRect.left + wordRect.width / 2 + containerEl.scrollLeft,
+        y: wordRect.top - containerRect.top - 5 + containerEl.scrollTop,
+        opacity: 1,
+      });
+    } else {
+       setHeartPos((prev) => ({ ...prev, opacity: 0 }));
+    }
+  }, [currentTime, activeLyricIndex, lyrics]);
 
   const handleSeek = (offset: number) => {
     const audioEl = audioRef.current;
@@ -528,7 +564,7 @@ export default function SongPage() {
             </div>
             
             <div className="w-full max-w-4xl rounded-[2.5rem] border-2 border-white/60 bg-white/50 p-8 shadow-inner backdrop-blur-sm">
-              <div className="flex flex-col gap-6 text-center h-[50vh] overflow-y-auto overflow-x-hidden no-scrollbar scroll-smooth">
+              <div id="lyrics-container" className="relative flex flex-col gap-6 text-center h-[50vh] overflow-y-auto overflow-x-hidden no-scrollbar scroll-smooth">
                 {lyrics.map((line, index) => {
                   const isActive = index === activeLyricIndex;
                   const isPast = index < activeLyricIndex;
@@ -573,7 +609,8 @@ export default function SongPage() {
                           return (
                             <span
                               key={`${index}-${wIndex}`}
-                              className="relative inline-block transition-transform duration-300"
+                              id={`word-${index}-${wIndex}`}
+                              className="relative inline-block transition-transform duration-300 mx-1"
                               style={
                                 isWordActive
                                   ? {
@@ -582,7 +619,7 @@ export default function SongPage() {
                                       backgroundPosition: `${wordBgPosX} 0`,
                                       WebkitBackgroundClip: "text",
                                       WebkitTextFillColor: "transparent",
-                                      transform: "scale(1.1)",
+                                      transform: "scale(1.2)",
                                     }
                                   : isWordPast || isPast
                                   ? {
@@ -603,6 +640,21 @@ export default function SongPage() {
                     </div>
                   );
                 })}
+
+                {/* Bouncing Heart Guide */}
+                <div 
+                  className="pointer-events-none absolute z-30 transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
+                  style={{
+                    left: `${heartPos.x}px`,
+                    top: `${heartPos.y}px`,
+                    opacity: heartPos.opacity,
+                    transform: `translate(-50%, -100%) scale(${heartPos.opacity})`,
+                  }}
+                >
+                  <div className="animate-bounce">
+                    <HeartPulse className="h-6 w-6 text-rose-500 fill-rose-500 drop-shadow-[0_0_10px_rgba(251,113,133,0.8)]" />
+                  </div>
+                </div>
               </div>
             </div>
 
