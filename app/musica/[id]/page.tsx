@@ -58,6 +58,7 @@ export default function SongPage() {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [instrumentalReady, setInstrumentalReady] = useState(false);
+  const [isVideoReady, setIsVideoReady] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lyricRefs = useRef<Array<HTMLDivElement | null>>([]);
@@ -275,9 +276,15 @@ export default function SongPage() {
                       if (value > 0) {
                         setDuration(value);
                       }
+                      setIsVideoReady(true);
                     }}
+                    onCanPlay={() => setIsVideoReady(true)}
+                    onWaiting={() => setIsVideoReady(false)}
                     onTimeUpdate={(event) => {
-                      setCurrentTime(event.currentTarget.currentTime);
+                      // Only update state if there is no instrumental (master) audio
+                      if (!song?.instrumentalUrl) {
+                        setCurrentTime(event.currentTarget.currentTime);
+                      }
                     }}
                     onEnded={() => {
                       setIsPlaying(false);
@@ -317,6 +324,14 @@ export default function SongPage() {
                     </Link>
                   </div>
                 ) : null}
+
+                {/* Loading Overlay */}
+                {isPlaying && sourceVideoUrl && !isVideoReady && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/40 backdrop-blur-sm z-20">
+                    <div className="h-12 w-12 border-4 border-rose-200 border-t-rose-500 rounded-full animate-spin"></div>
+                    <p className="text-white font-bold animate-pulse">Sincronizando magia...</p>
+                  </div>
+                )}
               </div>
 
               <div className="rounded-2xl border border-white/40 bg-white/50 p-4 shadow-sm backdrop-blur-sm">
@@ -413,9 +428,15 @@ export default function SongPage() {
                     className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-r from-rose-400 to-pink-500 text-white shadow-[0_0_20px_rgb(251,113,133,0.5)] transition-all duration-300 hover:scale-110 hover:shadow-[0_0_30px_rgb(251,113,133,0.8)] disabled:opacity-50 disabled:hover:scale-100"
                     type="button"
                     onClick={() => setIsPlaying((prev) => !prev)}
-                    disabled={!sourceVideoUrl}
+                    disabled={Boolean(!sourceVideoUrl || (sourceVideoUrl && !isVideoReady) || (song?.instrumentalUrl && !instrumentalReady))}
                   >
-                    {isPlaying ? <Pause className="h-10 w-10 fill-current" /> : <Play className="h-10 w-10 fill-current ml-2" />}
+                    {(!isVideoReady && sourceVideoUrl && isPlaying) || (song?.instrumentalUrl && !instrumentalReady && isPlaying) ? (
+                       <div className="h-8 w-8 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    ) : isPlaying ? (
+                      <Pause className="h-10 w-10 fill-current" />
+                    ) : (
+                      <Play className="h-10 w-10 fill-current ml-2" />
+                    )}
                   </button>
                   <button
                     className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-rose-200 bg-white text-rose-500 transition-all hover:scale-110 hover:border-rose-400 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
