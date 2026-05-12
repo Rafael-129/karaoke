@@ -186,7 +186,13 @@ export default function SongPage() {
       // Audio element drives playback
       if (isPlaying) {
         void audioEl.play();
-        if (videoEl) void videoEl.play().catch(() => {});
+        if (videoEl) {
+          // Si el video está muy lejos del audio al arrancar, lo sincronizamos una sola vez
+          if (videoEl.readyState >= 2 && Math.abs(videoEl.currentTime - audioEl.currentTime) > 2) {
+             videoEl.currentTime = audioEl.currentTime;
+          }
+          void videoEl.play().catch(() => {});
+        }
       } else {
         audioEl.pause();
         if (videoEl) videoEl.pause();
@@ -363,7 +369,6 @@ export default function SongPage() {
                       setIsVideoReady(true);
                     }}
                     onCanPlay={() => setIsVideoReady(true)}
-                    onWaiting={() => setIsVideoReady(false)}
                     onTimeUpdate={(event) => {
                       // Only update state if there is no instrumental (master) audio
                       if (!song?.instrumentalUrl) {
@@ -480,7 +485,8 @@ export default function SongPage() {
                   onTimeUpdate={(event) => {
                     const t = event.currentTarget.currentTime;
                     setCurrentTime(t);
-                    if (videoRef.current && Math.abs(videoRef.current.currentTime - t) > 0.5) {
+                    // Increase threshold to 1 second to avoid micro-stutters
+                    if (videoRef.current && Math.abs(videoRef.current.currentTime - t) > 1.0) {
                       try {
                         videoRef.current.currentTime = t;
                       } catch (e) {
