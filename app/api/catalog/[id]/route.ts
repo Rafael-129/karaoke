@@ -38,3 +38,29 @@ export async function GET(
     instrumentalUrl: normalizeUrl(song.instrumentalUrl),
   });
 }
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  if (!BACKEND_URL) {
+    return NextResponse.json({ error: "Backend URL no configurada." }, { status: 500 });
+  }
+
+  const { id } = await params;
+  const response = await fetch(`${BACKEND_URL}/catalog/${id}`, {
+    method: "DELETE",
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    return NextResponse.json(
+      { error: errorText || "Error al eliminar la cancion." },
+      { status: response.status }
+    );
+  }
+
+  const payload = (await response.json()) as Record<string, unknown>;
+  return NextResponse.json(payload);
+}
