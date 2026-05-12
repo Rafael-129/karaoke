@@ -56,30 +56,55 @@ const parseLrc = (raw: string): LrcLine[] => {
     const lineEndTime = next ? next.time : current.time + 5;
     const duration = lineEndTime - current.time;
     
-    const wordsRaw = current.text.split(/(\s+)/).filter(w => w.length > 0);
-    const totalChars = current.text.length || 1;
+    const wordsRaw = current.text.split(/(<\d{2}:\d{2}\.\d{2}>[^<]*)/).filter(w => w.trim().length > 0);
+    const hasWordTimestamps = current.text.includes("<") && current.text.includes(">");
+    const totalChars = current.text.replace(/<\d{2}:\d{2}\.\d{2}>/g, "").length || 1;
     
     let currentWordTime = current.time;
     const words: LrcWord[] = [];
     
-    for (const w of wordsRaw) {
-      // Calculamos el tiempo proporcional a la longitud de la palabra
-      const wordDuration = (w.length / totalChars) * duration;
-      const wordEndTime = currentWordTime + wordDuration;
-      
-      words.push({
-        text: w,
-        startTime: currentWordTime,
-        endTime: wordEndTime
-      });
-      
-      currentWordTime = wordEndTime;
+    if (hasWordTimestamps) {
+      for (const part of wordsRaw) {
+        const match = part.match(/<(\d{2}):(\d{2})\.(\d{2})>(.*)/);
+        if (match) {
+          const m = Number(match[1]);
+          const s = Number(match[2]);
+          const c = Number(match[3]);
+          const wTime = m * 60 + s + c / 100;
+          const wText = match[4].trim();
+          
+          if (words.length > 0) {
+            words[words.length - 1].endTime = wTime;
+          }
+          
+          words.push({
+            text: wText,
+            startTime: wTime,
+            endTime: lineEndTime // Temporalmente el final de la línea
+          });
+        }
+      }
+    } else {
+      // Fallback: Interpolación por longitud
+      const wordsSimple = current.text.split(/(\s+)/).filter(w => w.length > 0);
+      for (const w of wordsSimple) {
+        const wordDuration = (w.length / totalChars) * duration;
+        const wordEndTime = currentWordTime + wordDuration;
+        
+        words.push({
+          text: w,
+          startTime: currentWordTime,
+          endTime: wordEndTime
+        });
+        
+        currentWordTime = wordEndTime;
+      }
     }
 
     entries.push({
       time: current.time,
       endTime: lineEndTime,
-      text: current.text,
+      text: current.text.replace(/<\d{2}:\d{2}\.\d{2}>/g, ""),
       words: words
     });
   }
