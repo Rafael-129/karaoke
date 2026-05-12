@@ -7,9 +7,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { type Song, songs } from "../../data/songs";
 import { Play, Pause, Rewind, FastForward, HeartPulse, Sparkles, Music2 } from "lucide-react";
 
+type LrcWord = {
+  text: string;
+  startTime: number;
+  endTime: number;
+};
+
 type LrcLine = {
   time: number;
+  endTime: number;
   text: string;
+  words: LrcWord[];
 };
 
 const parseLrc = (raw: string): LrcLine[] => {
@@ -18,12 +26,12 @@ const parseLrc = (raw: string): LrcLine[] => {
     .map((line) => line.trim())
     .filter(Boolean);
 
-  const entries: LrcLine[] = [];
+  const rawEntries: { time: number; text: string }[] = [];
 
   for (const line of lines) {
     const match = line.match(/\[(\d{2}):(\d{2})(?:\.(\d{1,2}))?\]\s*(.*)/);
     if (!match) {
-      entries.push({ time: entries.length, text: line });
+      rawEntries.push({ time: rawEntries.length, text: line });
       continue;
     }
 
@@ -33,10 +41,50 @@ const parseLrc = (raw: string): LrcLine[] => {
     const text = match[4]?.trim() ?? "";
 
     const time = minutes * 60 + seconds + centiseconds / 100;
-    entries.push({ time, text });
+    rawEntries.push({ time, text });
   }
 
-  return entries.sort((a, b) => a.time - b.time);
+  rawEntries.sort((a, b) => a.time - b.time);
+
+  const entries: LrcLine[] = [];
+
+  for (let i = 0; i < rawEntries.length; i++) {
+    const current = rawEntries[i];
+    const next = rawEntries[i + 1];
+    
+    // Si no hay siguiente línea, le damos 5 segundos de duración por defecto
+    const lineEndTime = next ? next.time : current.time + 5;
+    const duration = lineEndTime - current.time;
+    
+    const wordsRaw = current.text.split(/(\s+)/).filter(w => w.length > 0);
+    const totalChars = current.text.length || 1;
+    
+    let currentWordTime = current.time;
+    const words: LrcWord[] = [];
+    
+    for (const w of wordsRaw) {
+      // Calculamos el tiempo proporcional a la longitud de la palabra
+      const wordDuration = (w.length / totalChars) * duration;
+      const wordEndTime = currentWordTime + wordDuration;
+      
+      words.push({
+        text: w,
+        startTime: currentWordTime,
+        endTime: wordEndTime
+      });
+      
+      currentWordTime = wordEndTime;
+    }
+
+    entries.push({
+      time: current.time,
+      endTime: lineEndTime,
+      text: current.text,
+      words: words
+    });
+  }
+
+  return entries;
 };
 
 const BACKEND_DEMO_FALLBACK = songs;
@@ -505,32 +553,53 @@ export default function SongPage() {
                           : "opacity-40 hover:opacity-60"
                       }`}
                     >
-                      <span 
-                        className={`font-black tracking-tight transition-all duration-[50ms] ${
+                      <div 
+                        className={`font-black tracking-tight transition-all duration-[50ms] flex flex-wrap justify-center ${
                           isActive || isPast
-                            ? "text-3xl sm:text-5xl leading-tight drop-shadow-[0_0_25px_rgb(251,113,133,0.8)]" 
-                            : "text-xl sm:text-3xl text-zinc-600"
+                            ? "text-3xl sm:text-5xl leading-tight drop-shadow-[0_0_25px_rgb(251,113,133,0.4)]" 
+                            : "text-xl sm:text-3xl text-zinc-400"
                         }`}
-                        style={
-                          isActive 
-                            ? {
-                                backgroundImage: "linear-gradient(to right, #fb7185 0%, #ec4899 25%, #fb7185 50%, #a1a1aa 50%, #a1a1aa 100%)",
-                                backgroundSize: "200% 100%",
-                                backgroundPosition: `${bgPosX} 0`,
-                                WebkitBackgroundClip: "text",
-                                WebkitTextFillColor: "transparent",
-                              }
-                            : isPast
-                            ? {
-                                backgroundImage: "linear-gradient(to right, #fb7185, #ec4899)",
-                                WebkitBackgroundClip: "text",
-                                WebkitTextFillColor: "transparent",
-                              }
-                            : {}
-                        }
                       >
-                        {line.text}
-                      </span>
+                        {line.words.map((word, wIndex) => {
+                          let wordBgPosX = "100%";
+                          const isWordPast = currentTime > word.endTime;
+                          const isWordActive = currentTime >= word.startTime && currentTime <= word.endTime;
+
+                          if (isWordActive) {
+                            const wordProgress = Math.max(0, Math.min(1, (currentTime - word.startTime) / (word.endTime - word.startTime)));
+                            wordBgPosX = `${100 - (wordProgress * 100)}%`;
+                          }
+
+                          return (
+                            <span
+                              key={`${index}-${wIndex}`}
+                              className="relative inline-block transition-transform duration-300"
+                              style={
+                                isWordActive
+                                  ? {
+                                      backgroundImage: "linear-gradient(to right, #fb7185 0%, #ec4899 50%, #a1a1aa 50%, #a1a1aa 100%)",
+                                      backgroundSize: "200% 100%",
+                                      backgroundPosition: `${wordBgPosX} 0`,
+                                      WebkitBackgroundClip: "text",
+                                      WebkitTextFillColor: "transparent",
+                                      transform: "scale(1.1)",
+                                    }
+                                  : isWordPast || isPast
+                                  ? {
+                                      backgroundImage: "linear-gradient(to right, #fb7185, #ec4899)",
+                                      WebkitBackgroundClip: "text",
+                                      WebkitTextFillColor: "transparent",
+                                    }
+                                  : {
+                                      color: "inherit"
+                                    }
+                              }
+                            >
+                              {word.text}
+                            </span>
+                          );
+                        })}
+                      </div>
                     </div>
                   );
                 })}
