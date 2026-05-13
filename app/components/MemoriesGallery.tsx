@@ -21,6 +21,15 @@ const IMAGES = [
   "WhatsApp Image 2026-05-11 at 6.51.04 PM.jpeg",
   "WhatsApp Image 2026-05-11 at 6.51.05 PM (1).jpeg",
   "WhatsApp Image 2026-05-11 at 6.51.05 PM.jpeg",
+  "WhatsApp Image 2026-05-12 at 1.00.36 AM.jpeg",
+  "WhatsApp Image 2026-05-12 at 1.02.49 AM.jpeg",
+  "WhatsApp Image 2026-05-12 at 1.03.07 AM.jpeg",
+  "WhatsApp Image 2026-05-12 at 1.04.10 AM (1).jpeg",
+  "WhatsApp Image 2026-05-12 at 1.04.10 AM.jpeg",
+  "WhatsApp Image 2026-05-12 at 1.08.17 AM.jpeg",
+  "WhatsApp Image 2026-05-12 at 12.12.57 AM.jpeg",
+  "WhatsApp Image 2026-05-12 at 12.46.27 AM.jpeg",
+  "WhatsApp Image 2026-05-12 at 12.57.52 AM.jpeg",
 ];
 
 const VIDEOS = [
