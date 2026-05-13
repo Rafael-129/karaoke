@@ -213,8 +213,8 @@ export default function SongPage() {
       if (isPlaying) {
         void audioEl.play();
         if (videoEl) {
-          // Si el video est muy lejos del audio al arrancar, lo sincronizamos una sola vez
-          if (videoEl.readyState >= 2 && Math.abs(videoEl.currentTime - audioEl.currentTime) > 2) {
+          // Si el video est fuera de sincronía al arrancar (más de 0.5s), lo ajustamos
+          if (videoEl.readyState >= 2 && Math.abs(videoEl.currentTime - audioEl.currentTime) > 0.5) {
              videoEl.currentTime = audioEl.currentTime;
           }
           void videoEl.play().catch(() => {});
@@ -388,6 +388,8 @@ export default function SongPage() {
                     src={sourceVideoUrl}
                     preload="auto"
                       muted={Boolean(song?.instrumentalUrl)}
+                    playsInline
+                    webkit-playsinline="true"
                     className="h-full w-full object-cover"
                     onLoadedMetadata={(event) => {
                       const value = event.currentTarget.duration || 0;

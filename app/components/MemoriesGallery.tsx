@@ -94,7 +94,7 @@ export default function MemoriesGallery() {
             className={`flex flex-col bg-white p-4 pb-8 rounded-sm shadow-[0_10px_30px_rgb(251,113,133,0.2)] transform transition-transform duration-500 hover:scale-105 hover:z-10 ${i % 2 === 0 ? '-rotate-2' : 'rotate-2'}`}
           >
             <video 
-              src={`/memories/${video}`} 
+              src={`/memories/${encodeURIComponent(video)}`} 
               controls 
               className="w-full rounded-sm object-cover bg-black/5"
             />
