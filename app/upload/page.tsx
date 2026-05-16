@@ -218,16 +218,17 @@ export default function UploadPage() {
           },
         });
       } else if (payload.job_id) {
-        // Backend is still processing — poll for status.
-        setPollingJobId(payload.job_id);
+        // Chunks are uploaded, processing is happening in background!
         setUploadState({
-          status: "uploading",
-          progress: 95,
-          statusMessage: "Esperando procesamiento...",
+          status: "success",
+          message: "✅ ¡Archivo subido! La IA está trabajando en tu canción. Ya puedes verla en el catálogo.",
+          progress: 100,
+          statusMessage: "Procesando en segundo plano...",
           result: {
             jobId: payload.job_id,
           },
         });
+        // We can still poll a bit if we want, but the main goal is to let the user go.
       } else {
         throw new Error(payload.message || "Error en la respuesta del servidor");
       }
