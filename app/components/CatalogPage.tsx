@@ -188,7 +188,7 @@ export default function CatalogPage() {
                           <p className="text-sm font-medium text-rose-400/80">{song.artist}</p>
                         </div>
                         <p className="rounded-2xl bg-rose-50/50 px-4 py-3 text-xs font-medium text-zinc-600 italic">
-                          "{song.lrcPreview || "Canción sin letra..."}"
+                          "{(song.lrcPreview || "Canción sin letra...").replace(/\[\d{2}:\d{2}\.\d{2}\]/g, "").replace(/<\d{2}:\d{2}\.\d{2}>/g, "").trim()}"
                         </p>
                       </Link>
 
