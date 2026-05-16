@@ -46,6 +46,8 @@ export async function POST(request: Request) {
     outbound.append(key, value as string);
   }
 
+  console.log(`[DEBUG] Proxying to backend: /separate, fields: ${[...outbound.keys()]}`, { jobId: outbound.get('job_id'), chunk: outbound.get('chunk_index') });
+
   const response = await fetch(`${BACKEND_URL}/separate`, {
     method: "POST",
     body: outbound as unknown as BodyInit,
