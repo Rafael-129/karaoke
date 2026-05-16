@@ -12,11 +12,10 @@ export default function SecretPage() {
               Feliz 1er Aniversario mi reina hermosa ❤️
             </div>
             <div className="rounded-full bg-white px-4 py-2 text-[10px] font-black uppercase tracking-[0.3em] text-rose-500 shadow-sm border border-rose-100 flex items-center gap-2">
-              <span>R + S</span>
               <span className="text-xs">♾️</span>
             </div>
           </div>
-          
+
           <div className="mt-8 flex flex-col gap-4">
             <h1 className="text-5xl font-black text-zinc-900 tracking-tight sm:text-6xl">
               Nuestro Cancionero <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-500 to-pink-500">Especial</span>
@@ -25,8 +24,8 @@ export default function SecretPage() {
               Un pequeo regalo hecho con muchsimo amor. Sube nuestras canciones favoritas, qutales la voz automticamente, y cantemos juntos hoy y siempre. ¡Te amo!
             </p>
           </div>
-          
-          <Link 
+
+          <Link
             href="/catalogo"
             className="rounded-full border border-black/10 bg-white px-6 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-zinc-700 hover:bg-rose-50 hover:text-rose-500 transition-all"
           >

@@ -139,6 +139,8 @@ export default function SongPage() {
   const lyricRefs = useRef<Array<HTMLDivElement | null>>([]);
   const pendingSeekRef = useRef<number | null>(null);
 
+  const [jobStatus, setJobStatus] = useState<{ status: string; progress: number; message: string } | null>(null);
+
   useEffect(() => {
     if (!songId || BACKEND_DEMO_FALLBACK.some((item) => item.id === songId)) {
       return;
@@ -146,7 +148,7 @@ export default function SongPage() {
 
     const controller = new AbortController();
 
-    const loadSong = async () => {
+    const loadSong = async (isRetry = false) => {
       try {
         const response = await fetch(`/api/catalog/${songId}`, {
           signal: controller.signal,
@@ -159,13 +161,18 @@ export default function SongPage() {
           setSong(payload);
           setLoadError(null);
           setIsLoadingSong(false);
+          
+          // If song is completed, we don't need to poll anymore
+          if (payload.status === "completed") {
+            setJobStatus(null);
+          }
         }
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
           return;
         }
 
-        if (!controller.signal.aborted) {
+        if (!controller.signal.aborted && !isRetry) {
           setLoadError("No se pudo cargar la cancion.");
           setIsLoadingSong(false);
           setSong(null);
@@ -175,8 +182,32 @@ export default function SongPage() {
 
     void loadSong();
 
-    return () => controller.abort();
-  }, [songId]);
+    // Polling for job status if processing
+    let pollInterval: NodeJS.Timeout | null = null;
+    
+    if (song?.status === "processing") {
+      pollInterval = setInterval(async () => {
+        try {
+          const res = await fetch(`/api/jobs/${songId}`);
+          if (res.ok) {
+            const status = await res.json();
+            setJobStatus(status);
+            if (status.status === "completed") {
+              // Refresh song data to get lyrics and instrumental
+              void loadSong(true);
+            }
+          }
+        } catch (e) {
+          console.error("Poll error:", e);
+        }
+      }, 2000);
+    }
+
+    return () => {
+      controller.abort();
+      if (pollInterval) clearInterval(pollInterval);
+    };
+  }, [songId, song?.status]);
 
   const lyrics = useMemo(() => parseLrc(song?.lrc ?? ""), [song?.lrc]);
   const activeLyricIndex = useMemo(() => {
@@ -363,6 +394,68 @@ export default function SongPage() {
     );
   }
 
+  if (song?.status === "processing") {
+    const progress = jobStatus?.progress ?? 5;
+    return (
+      <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_#fff1f2,_#fce7f3_50%,_#fdf2f8_100%)] flex flex-col">
+        <header className="px-6 py-12 flex items-center relative">
+           <Link
+            className="rounded-full border border-black/5 px-6 py-2.5 text-xs font-bold uppercase tracking-[0.15em] text-zinc-500 bg-white/80 hover:bg-white transition-all shadow-sm"
+            href="/catalogo"
+          >
+            Volver al catalogo
+          </Link>
+          
+          <div className="absolute left-1/2 -translate-x-1/2">
+            <div className="flex items-center gap-2 rounded-full bg-white/80 px-4 py-1.5 shadow-sm border border-rose-100">
+              <span className="text-xs font-black tracking-widest text-rose-500">R + S</span>
+              <Sparkles className="h-3 w-3 text-rose-300" />
+            </div>
+          </div>
+        </header>
+
+        <div className="flex-1 flex items-center justify-center px-6 -mt-20">
+          <div className="w-full max-w-2xl rounded-[3rem] bg-white/40 p-12 shadow-[0_20px_50px_rgba(251,113,133,0.1)] backdrop-blur-xl border-4 border-white/60 flex flex-col items-center text-center">
+            
+            <div className="relative mb-8">
+              <div className="h-32 w-32 rounded-full border-4 border-rose-100 flex items-center justify-center">
+                <div 
+                  className="absolute inset-0 rounded-full border-4 border-rose-500 transition-all duration-1000"
+                  style={{ 
+                    clipPath: `inset(0 0 0 0)`,
+                    maskImage: `conic-gradient(#000 ${progress}%, transparent ${progress}%)`,
+                    WebkitMaskImage: `conic-gradient(#000 ${progress}%, transparent ${progress}%)`
+                  }}
+                />
+                <HeartPulse className="h-12 w-12 text-rose-500 animate-pulse" />
+              </div>
+            </div>
+
+            <h2 className="text-3xl font-black text-zinc-800 mb-2 tracking-tight">
+              Sincronizando Magia...
+            </h2>
+            <p className="text-rose-400 font-medium mb-12">
+              Estamos preparando todo para que puedas cantar a todo pulmón. ✨
+            </p>
+
+            <div className="w-full space-y-3">
+              <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-rose-500">
+                <span>Progreso</span>
+                <span>{progress}%</span>
+              </div>
+              <div className="h-3 w-full bg-rose-100 rounded-full overflow-hidden border border-white">
+                <div 
+                  className="h-full bg-gradient-to-r from-rose-400 to-pink-500 transition-all duration-1000 ease-out"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_#fff1f2,_#fce7f3_50%,_#fdf2f8_100%)]">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-12">
@@ -387,29 +480,26 @@ export default function SongPage() {
                     ref={videoRef}
                     src={sourceVideoUrl}
                     preload="auto"
-                      muted={Boolean(song?.instrumentalUrl)}
+                    muted={Boolean(song?.instrumentalUrl)}
                     playsInline
                     webkit-playsinline="true"
                     className="h-full w-full object-cover"
                     onLoadedMetadata={(event) => {
                       const value = event.currentTarget.duration || 0;
-                      setDuration(value);
+                      if (value > 0) {
+                        setDuration(value);
+                      }
                       if (pendingSeekRef.current !== null) {
                         event.currentTarget.currentTime = pendingSeekRef.current;
                         setCurrentTime(pendingSeekRef.current);
                         pendingSeekRef.current = null;
                       }
                     }}
-                    onLoadedData={(event) => {
-                      const value = event.currentTarget.duration || 0;
-                      if (value > 0) {
-                        setDuration(value);
-                      }
+                    onLoadedData={() => {
                       setIsVideoReady(true);
                     }}
                     onCanPlay={() => setIsVideoReady(true)}
                     onTimeUpdate={(event) => {
-                      // Only update state if there is no instrumental (master) audio
                       if (!song?.instrumentalUrl) {
                         setCurrentTime(event.currentTarget.currentTime);
                       }
@@ -422,7 +512,7 @@ export default function SongPage() {
                 ) : (
                   <div className="flex h-full flex-col items-center justify-center gap-4 text-center text-sm text-white/80">
                     <Music2 className="h-16 w-16 text-rose-300 opacity-50 animate-bounce" />
-                    <p className="text-xl font-bold text-white">Escenario Mgico</p>
+                    <p className="text-xl font-bold text-white">Escenario Mágico</p>
                     <p className="max-w-xs text-sm text-white/60">
                       Sube un archivo de video para probar la interfaz.
                     </p>

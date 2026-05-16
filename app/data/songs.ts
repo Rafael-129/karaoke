@@ -9,6 +9,7 @@ export type Song = {
   lrc: string;
   videoUrl?: string;
   instrumentalUrl?: string;
+  status?: "processing" | "completed";
 };
 
 export const songs: Song[] = [];
