@@ -116,13 +116,6 @@ export default function CatalogPage() {
               Cada melodía es un recuerdo, cada letra un sentimiento. 
               Elige la que más te guste y cantemos juntos. 💕
             </p>
-            <Link 
-              href="/upload"
-              className="flex items-center gap-2 rounded-full bg-rose-500 px-8 py-3 text-sm font-bold uppercase tracking-widest text-white shadow-[0_10px_20px_rgb(251,113,133,0.3)] transition-all hover:bg-rose-600 hover:scale-105 active:scale-95"
-            >
-              <Plus className="h-5 w-5" />
-              Subir Nueva Canción
-            </Link>
           </div>
         </header>
 
@@ -138,21 +131,31 @@ export default function CatalogPage() {
             />
           </div>
 
-          <div className="flex flex-wrap justify-center gap-3">
-            {(["todo", "pop", "rock", "anime", "baladas"] as const).map((tab) => (
-              <button
-                key={tab}
-                className={`rounded-full px-8 py-3 text-sm font-bold uppercase tracking-widest transition-all ${
-                  activeTab === tab
-                    ? "bg-zinc-900 text-white shadow-lg shadow-zinc-200 scale-105"
-                    : "bg-white/60 text-rose-400 hover:bg-rose-50 border-2 border-white/40"
-                }`}
-                onClick={() => setActiveTab(tab)}
-                type="button"
-              >
-                {tab}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center justify-between gap-6">
+            <div className="flex flex-wrap gap-3">
+              {(["todo", "pop", "rock", "anime", "baladas"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  className={`rounded-full px-8 py-3 text-sm font-bold uppercase tracking-widest transition-all ${
+                    activeTab === tab
+                      ? "bg-zinc-900 text-white shadow-lg shadow-zinc-200 scale-105"
+                      : "bg-white/60 text-rose-400 hover:bg-rose-50 border-2 border-white/40"
+                  }`}
+                  onClick={() => setActiveTab(tab)}
+                  type="button"
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+
+            <Link 
+              href="/upload"
+              className="flex items-center gap-2 rounded-full bg-rose-500 px-8 py-3 text-sm font-bold uppercase tracking-widest text-white shadow-[0_10px_20px_rgb(251,113,133,0.3)] transition-all hover:bg-rose-600 hover:scale-105 active:scale-95"
+            >
+              <Plus className="h-5 w-5" />
+              Subir Nueva Canción
+            </Link>
           </div>
         </div>
 
