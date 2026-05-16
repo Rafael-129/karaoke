@@ -20,15 +20,7 @@ export async function GET(
   }
 
   try {
-    const response = await fetch(`${BACKEND_URL}/catalog/${job_id}`);
-
-    if (response.status === 404) {
-      // Job not found yet — still processing
-      return NextResponse.json(
-        { job_id, status: "processing", progress: 50, message: "Procesando..." },
-        { status: 200 }
-      );
-    }
+    const response = await fetch(`${BACKEND_URL}/jobs/${job_id}`);
 
     if (!response.ok) {
       return NextResponse.json(
@@ -37,19 +29,24 @@ export async function GET(
       );
     }
 
-    const song = (await response.json()) as {
-      id?: string;
-      instrumentalUrl?: string;
-      [key: string]: unknown;
+    const payload = (await response.json()) as {
+      job_id?: string;
+      status?: string;
+      progress?: number;
+      message?: string;
+      song?: {
+        id?: string;
+        instrumentalUrl?: string;
+        [key: string]: unknown;
+      };
     };
 
-    // Job is complete — return completed status
     return NextResponse.json({
-      job_id,
-      status: "completed",
-      progress: 100,
-      message: "Completado",
-      song,
+      job_id: payload.job_id ?? job_id,
+      status: payload.status ?? "processing",
+      progress: payload.progress ?? 50,
+      message: payload.message ?? "Procesando...",
+      song: payload.song,
     });
   } catch {
     return NextResponse.json(
