@@ -51,18 +51,18 @@ const parseLrc = (raw: string): LrcLine[] => {
   for (let i = 0; i < rawEntries.length; i++) {
     const current = rawEntries[i];
     const next = rawEntries[i + 1];
-    
+
     // Si no hay siguiente línea, le damos 5 segundos de duración por defecto
     const lineEndTime = next ? next.time : current.time + 5;
     const duration = lineEndTime - current.time;
-    
+
     const wordsRaw = current.text.split(/(<\d{2}:\d{2}\.\d{2}>[^<]*)/).filter(w => w.trim().length > 0);
     const hasWordTimestamps = current.text.includes("<") && current.text.includes(">");
     const totalChars = current.text.replace(/<\d{2}:\d{2}\.\d{2}>/g, "").length || 1;
-    
+
     let currentWordTime = current.time;
     const words: LrcWord[] = [];
-    
+
     if (hasWordTimestamps) {
       for (const part of wordsRaw) {
         const match = part.match(/<(\d{2}):(\d{2})\.(\d{2})>(.*)/);
@@ -72,11 +72,11 @@ const parseLrc = (raw: string): LrcLine[] => {
           const c = Number(match[3]);
           const wTime = m * 60 + s + c / 100;
           const wText = match[4].trim();
-          
+
           if (words.length > 0) {
             words[words.length - 1].endTime = wTime;
           }
-          
+
           words.push({
             text: wText,
             startTime: wTime,
@@ -90,13 +90,13 @@ const parseLrc = (raw: string): LrcLine[] => {
       for (const w of wordsSimple) {
         const wordDuration = (w.length / totalChars) * duration;
         const wordEndTime = currentWordTime + wordDuration;
-        
+
         words.push({
           text: w,
           startTime: currentWordTime,
           endTime: wordEndTime
         });
-        
+
         currentWordTime = wordEndTime;
       }
     }
@@ -140,6 +140,35 @@ export default function SongPage() {
   const pendingSeekRef = useRef<number | null>(null);
 
   const [jobStatus, setJobStatus] = useState<{ status: string; progress: number; message: string } | null>(null);
+  const [isSeparatingOnDemand, setIsSeparatingOnDemand] = useState(false);
+
+  const handleSeparateOnDemand = async () => {
+    if (!songId || isSeparatingOnDemand) return;
+    setIsSeparatingOnDemand(true);
+    try {
+      const response = await fetch(`/api/catalog/${songId}/separate`, {
+        method: "POST"
+      });
+      if (response.ok) {
+        const data = await response.json();
+        // Update local song state with new instrumental URL
+        setSong(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            instrumentalUrl: data.instrumental_url
+          };
+        });
+      } else {
+        alert("Ocurrió un error al procesar la instrumental. Inténtalo de nuevo. 💕");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error de red al procesar la instrumental.");
+    } finally {
+      setIsSeparatingOnDemand(false);
+    }
+  };
 
   useEffect(() => {
     if (!songId || BACKEND_DEMO_FALLBACK.some((item) => item.id === songId)) {
@@ -161,7 +190,7 @@ export default function SongPage() {
           setSong(payload);
           setLoadError(null);
           setIsLoadingSong(false);
-          
+
           // If song is completed, we don't need to poll anymore
           if (payload.status === "completed") {
             setJobStatus(null);
@@ -184,11 +213,11 @@ export default function SongPage() {
 
     // Polling for job status if processing
     let pollInterval: NodeJS.Timeout | null = null;
-    
+
     if (song?.status === "processing") {
       pollInterval = setInterval(async () => {
         try {
-          const res = await fetch(`/api/jobs/${songId}`);
+          const res = await fetch(`/api/jobs/${songId}`, { cache: "no-store" });
           if (res.ok) {
             const status = await res.json();
             setJobStatus(status);
@@ -246,9 +275,9 @@ export default function SongPage() {
         if (videoEl) {
           // Si el video est fuera de sincronía al arrancar (más de 0.5s), lo ajustamos
           if (videoEl.readyState >= 2 && Math.abs(videoEl.currentTime - audioEl.currentTime) > 0.5) {
-             videoEl.currentTime = audioEl.currentTime;
+            videoEl.currentTime = audioEl.currentTime;
           }
-          void videoEl.play().catch(() => {});
+          void videoEl.play().catch(() => { });
         }
       } else {
         audioEl.pause();
@@ -281,12 +310,12 @@ export default function SongPage() {
 
     const containerEl = document.getElementById("lyrics-container");
     const activeEl = lyricRefs.current[activeLyricIndex];
-    
+
     if (containerEl && activeEl) {
       const containerHeight = containerEl.offsetHeight;
       const activeHeight = activeEl.offsetHeight;
       const activeTop = activeEl.offsetTop;
-      
+
       // Calculamos cunto debemos mover la lista para que la lnea activa est al centro
       const targetOffset = (containerHeight / 2) - (activeTop + activeHeight / 2);
       setContainerOffset(targetOffset);
@@ -313,18 +342,18 @@ export default function SongPage() {
 
     const wordEl = document.getElementById(`word-${activeLyricIndex}-${activeWordIndex}`);
     const containerEl = document.getElementById("lyrics-container");
-    
+
     if (wordEl && containerEl) {
       const wordRect = wordEl.getBoundingClientRect();
       const containerRect = containerEl.getBoundingClientRect();
-      
+
       setHeartPos({
         x: wordRect.left - containerRect.left + wordRect.width / 2 + containerEl.scrollLeft,
         y: wordRect.top - containerRect.top - 5 + containerEl.scrollTop,
         opacity: 1,
       });
     } else {
-       setHeartPos((prev) => ({ ...prev, opacity: 0 }));
+      setHeartPos((prev) => ({ ...prev, opacity: 0 }));
     }
   }, [currentTime, activeLyricIndex, lyrics]);
 
@@ -396,19 +425,20 @@ export default function SongPage() {
 
   if (song?.status === "processing") {
     const progress = jobStatus?.progress ?? 5;
+    const statusMessage = jobStatus?.message ?? "Procesando...";
     return (
       <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_#fff1f2,_#fce7f3_50%,_#fdf2f8_100%)] flex flex-col">
         <header className="px-6 py-12 flex items-center relative">
-           <Link
+          <Link
             className="rounded-full border border-black/5 px-6 py-2.5 text-xs font-bold uppercase tracking-[0.15em] text-zinc-500 bg-white/80 hover:bg-white transition-all shadow-sm"
             href="/catalogo"
           >
             Volver al catalogo
           </Link>
-          
+
           <div className="absolute left-1/2 -translate-x-1/2">
             <div className="flex items-center gap-2 rounded-full bg-white/80 px-4 py-1.5 shadow-sm border border-rose-100">
-              <span className="text-xs font-black tracking-widest text-rose-500">R + S</span>
+
               <Sparkles className="h-3 w-3 text-rose-300" />
             </div>
           </div>
@@ -416,12 +446,12 @@ export default function SongPage() {
 
         <div className="flex-1 flex items-center justify-center px-6 -mt-20">
           <div className="w-full max-w-2xl rounded-[3rem] bg-white/40 p-12 shadow-[0_20px_50px_rgba(251,113,133,0.1)] backdrop-blur-xl border-4 border-white/60 flex flex-col items-center text-center">
-            
+
             <div className="relative mb-8">
               <div className="h-32 w-32 rounded-full border-4 border-rose-100 flex items-center justify-center">
-                <div 
+                <div
                   className="absolute inset-0 rounded-full border-4 border-rose-500 transition-all duration-1000"
-                  style={{ 
+                  style={{
                     clipPath: `inset(0 0 0 0)`,
                     maskImage: `conic-gradient(#000 ${progress}%, transparent ${progress}%)`,
                     WebkitMaskImage: `conic-gradient(#000 ${progress}%, transparent ${progress}%)`
@@ -434,7 +464,10 @@ export default function SongPage() {
             <h2 className="text-3xl font-black text-zinc-800 mb-2 tracking-tight">
               Sincronizando Magia...
             </h2>
-            <p className="text-rose-400 font-medium mb-12">
+            <p className="text-rose-400 font-medium">
+              {statusMessage}
+            </p>
+            <p className="text-rose-300 text-sm mt-2 mb-12">
               Estamos preparando todo para que puedas cantar a todo pulmón. ✨
             </p>
 
@@ -444,7 +477,7 @@ export default function SongPage() {
                 <span>{progress}%</span>
               </div>
               <div className="h-3 w-full bg-rose-100 rounded-full overflow-hidden border border-white">
-                <div 
+                <div
                   className="h-full bg-gradient-to-r from-rose-400 to-pink-500 transition-all duration-1000 ease-out"
                   style={{ width: `${progress}%` }}
                 />
@@ -476,7 +509,7 @@ export default function SongPage() {
             <div className="space-y-6">
               <div className="relative aspect-video w-full overflow-hidden rounded-[2rem] border-4 border-white/60 bg-zinc-900/90 shadow-inner">
                 {sourceVideoUrl ? (
-                    <video
+                  <video
                     ref={videoRef}
                     src={sourceVideoUrl}
                     preload="auto"
@@ -552,20 +585,53 @@ export default function SongPage() {
                 )}
               </div>
 
-              <div className="rounded-2xl border border-white/40 bg-white/50 p-4 shadow-sm backdrop-blur-sm">
+              <div className="rounded-2xl border border-white/40 bg-white/50 p-6 shadow-sm backdrop-blur-sm">
                 {song.videoUrl ? (
-                  <div className="flex flex-col gap-2 text-sm text-zinc-700">
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-600">
-                      Video y instrumental guardados
+                  <div className="flex flex-col gap-3 text-sm text-zinc-700">
+                    <p className="text-xs font-bold uppercase tracking-[0.2em] text-rose-500 flex items-center gap-1.5">
+                      <Sparkles className="h-4 w-4" />
+                      Medios de la Canción
                     </p>
-                    <a className="font-semibold text-zinc-900 underline" href={song.videoUrl} target="_blank" rel="noreferrer">
-                      Abrir video original
-                    </a>
-                    {song.instrumentalUrl ? (
-                      <a className="font-semibold text-zinc-900 underline" href={song.instrumentalUrl} target="_blank" rel="noreferrer">
-                        Descargar instrumental
+
+                    <div className="flex flex-wrap items-center gap-4 mt-1">
+                      <a
+                        className="font-bold text-zinc-700 hover:text-rose-500 transition-colors flex items-center gap-1.5 underline"
+                        href={song.videoUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        🎬 Abrir video original
                       </a>
-                    ) : null}
+
+                      {song.instrumentalUrl ? (
+                        <a
+                          className="font-bold text-rose-500 hover:text-rose-600 transition-colors flex items-center gap-1.5 underline"
+                          href={song.instrumentalUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          📥 Descargar instrumental
+                        </a>
+                      ) : (
+                        <button
+                          onClick={handleSeparateOnDemand}
+                          disabled={isSeparatingOnDemand}
+                          className="flex items-center gap-2 rounded-full bg-gradient-to-r from-rose-500 to-pink-500 px-5 py-2 text-xs font-black uppercase tracking-wider text-white shadow-lg shadow-rose-200 transition-all hover:scale-105 hover:shadow-rose-300 disabled:opacity-75 disabled:hover:scale-100"
+                        >
+                          {isSeparatingOnDemand ? (
+                            <>
+                              <div className="h-3.5 w-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                              Separando instrumental (Demucs AI)...
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="h-3.5 w-3.5" />
+                              Descargar Instrumental (Puro Karaoke)
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ) : (
                   <>
@@ -650,7 +716,7 @@ export default function SongPage() {
                     disabled={Boolean(!sourceVideoUrl || (sourceVideoUrl && !isVideoReady) || (song?.instrumentalUrl && !instrumentalReady))}
                   >
                     {(!isVideoReady && sourceVideoUrl && isPlaying) || (song?.instrumentalUrl && !instrumentalReady && isPlaying) ? (
-                       <div className="h-8 w-8 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      <div className="h-8 w-8 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
                     ) : isPlaying ? (
                       <Pause className="h-10 w-10 fill-current" />
                     ) : (
@@ -669,27 +735,27 @@ export default function SongPage() {
                 <div className="mt-6 flex items-center gap-4 text-xs font-bold text-rose-400">
                   <span>{currentTime.toFixed(1)}s</span>
                   <input
-                  className="mt-4 w-full"
-                  type="range"
-                  min={0}
-                  max={duration || 0}
-                  step={0.1}
-                  value={currentTime}
-                  onChange={(event) => {
-                    const value = Number(event.target.value);
-                    setCurrentTime(value);
-                    if (videoRef.current) videoRef.current.currentTime = value;
-                  }}
-                />
-                <div className="mt-2 text-right text-xs font-bold text-rose-400">
-                  {duration.toFixed(1)}s
+                    className="mt-4 w-full"
+                    type="range"
+                    min={0}
+                    max={duration || 0}
+                    step={0.1}
+                    value={currentTime}
+                    onChange={(event) => {
+                      const value = Number(event.target.value);
+                      setCurrentTime(value);
+                      if (videoRef.current) videoRef.current.currentTime = value;
+                    }}
+                  />
+                  <div className="mt-2 text-right text-xs font-bold text-rose-400">
+                    {duration.toFixed(1)}s
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <div className="flex flex-col items-center gap-8 rounded-[3rem] border-4 border-white/50 bg-white/40 p-10 shadow-[0_10px_40px_rgb(251,113,133,0.15)] backdrop-blur-xl">
+          <div className="flex flex-col items-center gap-8 rounded-[3rem] border-4 border-white/50 bg-white/40 p-10 shadow-[0_10px_40px_rgb(251,113,133,0.15)] backdrop-blur-xl">
             <div className="flex flex-col items-center text-center space-y-2">
               <div className="inline-flex items-center justify-center rounded-full bg-rose-100 p-3 text-rose-500 shadow-inner">
                 <HeartPulse className="h-8 w-8 animate-pulse" />
@@ -697,17 +763,17 @@ export default function SongPage() {
               <h2 className="text-3xl font-black text-zinc-800 tracking-tight mt-2">{song.title}</h2>
               <p className="text-lg font-medium text-rose-500/80">{song.artist}</p>
             </div>
-            
+
             <div className="w-full max-w-4xl rounded-[2.5rem] border-2 border-white/60 bg-white/50 p-8 shadow-inner backdrop-blur-sm">
-              <div 
-                id="lyrics-container" 
+              <div
+                id="lyrics-container"
                 className="relative h-[50vh] overflow-hidden p-4"
                 style={{
                   maskImage: "linear-gradient(to bottom, transparent, black 25%, black 75%, transparent)",
                   WebkitMaskImage: "linear-gradient(to bottom, transparent, black 25%, black 75%, transparent)",
                 }}
               >
-                <div 
+                <div
                   className="flex flex-col gap-6 text-center transition-transform duration-700 ease-in-out"
                   style={{ transform: `translateY(${containerOffset}px)` }}
                 >
@@ -716,21 +782,20 @@ export default function SongPage() {
                     const nextLine = lyrics[activeLyricIndex + 1];
                     const currentLine = lyrics[activeLyricIndex];
                     if (!currentLine || !nextLine) return null;
-                    
+
                     const gap = nextLine.time - currentLine.endTime;
                     const timeLeft = nextLine.time - currentTime;
-                    
+
                     // Solo mostramos cuenta regresiva si el hueco es > 2s y faltan < 3s para empezar
                     if (gap > 2 && timeLeft > 0 && timeLeft < 3) {
                       const dots = Math.ceil(timeLeft);
                       return (
                         <div className="flex justify-center gap-4 py-4 animate-pulse">
                           {[...Array(3)].map((_, i) => (
-                            <div 
+                            <div
                               key={i}
-                              className={`h-4 w-4 rounded-full transition-all duration-300 ${
-                                3 - i <= dots ? "bg-rose-500 scale-125 shadow-[0_0_15px_rgb(251,113,133,0.8)]" : "bg-rose-200"
-                              }`}
+                              className={`h-4 w-4 rounded-full transition-all duration-300 ${3 - i <= dots ? "bg-rose-500 scale-125 shadow-[0_0_15px_rgb(251,113,133,0.8)]" : "bg-rose-200"
+                                }`}
                             />
                           ))}
                         </div>
@@ -740,62 +805,61 @@ export default function SongPage() {
                   })()}
 
                   {lyrics.map((line, index) => {
-                  const isActive = index === activeLyricIndex;
-                  const distance = Math.abs(index - activeLyricIndex);
-                  
-                  // Calculamos el nivel de "foco" basado en la distancia
-                  const opacity = index === activeLyricIndex ? 1 : Math.max(0.1, 1 - distance * 0.3);
-                  const scale = index === activeLyricIndex ? 1 : Math.max(0.7, 1 - distance * 0.1);
-                  const blur = index === activeLyricIndex ? 0 : Math.min(4, distance * 1.5);
-                  
-                  const isPast = index < activeLyricIndex;
-                  const nextLine = lyrics[index + 1];
-                  const lineDuration = nextLine ? nextLine.time - line.time : 4;
-                  
-                  let bgPosX = "100%";
-                  if (isActive) {
-                    const progress = Math.max(0, Math.min(1, (currentTime - line.time) / lineDuration));
-                    bgPosX = `${100 - (progress * 100)}%`;
-                  }
+                    const isActive = index === activeLyricIndex;
+                    const distance = Math.abs(index - activeLyricIndex);
 
-                  return (
-                    <div
-                      key={`${line.time}-${line.text}`}
-                      ref={(element) => {
-                        lyricRefs.current[index] = element;
-                      }}
-                      className={`transition-all duration-700 ease-in-out px-4 py-4`}
-                      style={{
-                        opacity: opacity,
-                        transform: `scale(${scale})`,
-                        filter: `blur(${blur}px)`,
-                      }}
-                    >
-                      <div 
-                        className={`font-black tracking-tight transition-all duration-[50ms] flex flex-wrap justify-center ${
-                          isActive || isPast
-                            ? "text-3xl sm:text-5xl leading-tight drop-shadow-[0_0_25px_rgb(251,113,133,0.3)]" 
-                            : "text-xl sm:text-3xl"
-                        }`}
+                    // Calculamos el nivel de "foco" basado en la distancia
+                    const opacity = index === activeLyricIndex ? 1 : Math.max(0.1, 1 - distance * 0.3);
+                    const scale = index === activeLyricIndex ? 1 : Math.max(0.7, 1 - distance * 0.1);
+                    const blur = index === activeLyricIndex ? 0 : Math.min(4, distance * 1.5);
+
+                    const isPast = index < activeLyricIndex;
+                    const nextLine = lyrics[index + 1];
+                    const lineDuration = nextLine ? nextLine.time - line.time : 4;
+
+                    let bgPosX = "100%";
+                    if (isActive) {
+                      const progress = Math.max(0, Math.min(1, (currentTime - line.time) / lineDuration));
+                      bgPosX = `${100 - (progress * 100)}%`;
+                    }
+
+                    return (
+                      <div
+                        key={`${line.time}-${line.text}`}
+                        ref={(element) => {
+                          lyricRefs.current[index] = element;
+                        }}
+                        className={`transition-all duration-700 ease-in-out px-4 py-4`}
+                        style={{
+                          opacity: opacity,
+                          transform: `scale(${scale})`,
+                          filter: `blur(${blur}px)`,
+                        }}
                       >
-                        {line.words.map((word, wIndex) => {
-                          let wordBgPosX = "100%";
-                          const isWordPast = currentTime > word.endTime;
-                          const isWordActive = currentTime >= word.startTime && currentTime <= word.endTime;
+                        <div
+                          className={`font-black tracking-tight transition-all duration-[50ms] flex flex-wrap justify-center ${isActive || isPast
+                            ? "text-3xl sm:text-5xl leading-tight drop-shadow-[0_0_25px_rgb(251,113,133,0.3)]"
+                            : "text-xl sm:text-3xl"
+                            }`}
+                        >
+                          {line.words.map((word, wIndex) => {
+                            let wordBgPosX = "100%";
+                            const isWordPast = currentTime > word.endTime;
+                            const isWordActive = currentTime >= word.startTime && currentTime <= word.endTime;
 
-                          if (isWordActive) {
-                            const wordProgress = Math.max(0, Math.min(1, (currentTime - word.startTime) / (word.endTime - word.startTime)));
-                            wordBgPosX = `${100 - (wordProgress * 100)}%`;
-                          }
+                            if (isWordActive) {
+                              const wordProgress = Math.max(0, Math.min(1, (currentTime - word.startTime) / (word.endTime - word.startTime)));
+                              wordBgPosX = `${100 - (wordProgress * 100)}%`;
+                            }
 
-                          return (
-                            <span
-                              key={`${index}-${wIndex}`}
-                              id={`word-${index}-${wIndex}`}
-                              className="relative inline-block transition-transform duration-300 mx-1"
-                              style={
-                                isWordActive
-                                  ? {
+                            return (
+                              <span
+                                key={`${index}-${wIndex}`}
+                                id={`word-${index}-${wIndex}`}
+                                className="relative inline-block transition-transform duration-300 mx-1"
+                                style={
+                                  isWordActive
+                                    ? {
                                       backgroundImage: "linear-gradient(to right, #fb7185 0%, #ec4899 50%, #a1a1aa 50%, #a1a1aa 100%)",
                                       backgroundSize: "200% 100%",
                                       backgroundPosition: `${wordBgPosX} 0`,
@@ -803,29 +867,29 @@ export default function SongPage() {
                                       WebkitTextFillColor: "transparent",
                                       transform: "scale(1.2)",
                                     }
-                                  : isWordPast || isPast
-                                  ? {
-                                      backgroundImage: "linear-gradient(to right, #fb7185, #ec4899)",
-                                      WebkitBackgroundClip: "text",
-                                      WebkitTextFillColor: "transparent",
-                                    }
-                                  : {
-                                      color: "inherit"
-                                    }
-                              }
-                            >
-                              {word.text}
-                            </span>
-                          );
-                        })}
+                                    : isWordPast || isPast
+                                      ? {
+                                        backgroundImage: "linear-gradient(to right, #fb7185, #ec4899)",
+                                        WebkitBackgroundClip: "text",
+                                        WebkitTextFillColor: "transparent",
+                                      }
+                                      : {
+                                        color: "inherit"
+                                      }
+                                }
+                              >
+                                {word.text}
+                              </span>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
                 </div>
 
                 {/* Bouncing Heart Guide */}
-                <div 
+                <div
                   className="pointer-events-none absolute z-30 transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
                   style={{
                     left: `${heartPos.x}px`,
