@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 const BACKEND_URL = (
   process.env.BACKEND_URL ||
   process.env.NEXT_PUBLIC_BACKEND_URL ||
@@ -20,7 +22,7 @@ export async function GET(
   }
 
   try {
-    const response = await fetch(`${BACKEND_URL}/jobs/${job_id}`);
+    const response = await fetch(`${BACKEND_URL}/jobs/${job_id}`, { cache: "no-store" });
 
     if (!response.ok) {
       return NextResponse.json(
