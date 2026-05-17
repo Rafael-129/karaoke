@@ -8,6 +8,12 @@ const BACKEND_URL = (
   ""
 ).replace(/\/+$/, "");
 
+const normalizeUrl = (value: unknown) => {
+  if (typeof value !== "string" || !value) return undefined;
+  if (value.startsWith("http")) return value;
+  return BACKEND_URL ? `${BACKEND_URL}${value}` : value;
+};
+
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ job_id: string }> }
@@ -43,12 +49,20 @@ export async function GET(
       };
     };
 
+    const song = payload.song
+      ? {
+          ...payload.song,
+          videoUrl: normalizeUrl(payload.song.videoUrl),
+          instrumentalUrl: normalizeUrl(payload.song.instrumentalUrl),
+        }
+      : undefined;
+
     return NextResponse.json({
       job_id: payload.job_id ?? job_id,
       status: payload.status ?? "processing",
       progress: payload.progress ?? 50,
       message: payload.message ?? "Procesando...",
-      song: payload.song,
+      song,
     });
   } catch {
     return NextResponse.json(

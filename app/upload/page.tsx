@@ -124,7 +124,7 @@ export default function UploadPage() {
 
     const interval = setInterval(async () => {
       try {
-        const response = await fetch(`/api/jobs/${pollingJobId}`);
+        const response = await fetch(`/api/jobs/${pollingJobId}`, { cache: "no-store" });
         if (!response.ok) return;
 
         const data = (await response.json()) as {
@@ -157,7 +157,7 @@ export default function UploadPage() {
               downloadUrl: data.song?.instrumentalUrl,
             },
           });
-        } else if (data.status === "error") {
+        } else if (data.status === "error" || data.status === "failed") {
           setPollingJobId(null);
           setUploadState({
             status: "error",
@@ -168,7 +168,7 @@ export default function UploadPage() {
       } catch (err) {
         console.error("Polling error:", err);
       }
-    }, 1000); // Poll every second
+    }, 5000);
 
     return () => clearInterval(interval);
   }, [pollingJobId]);
@@ -219,6 +219,7 @@ export default function UploadPage() {
         });
       } else if (payload.job_id) {
         // Chunks are uploaded, processing is happening in background!
+        setPollingJobId(payload.job_id);
         setUploadState({
           status: "success",
           message: "✅ ¡Archivo subido! La IA está trabajando en tu canción. Ya puedes verla en el catálogo.",
