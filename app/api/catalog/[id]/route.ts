@@ -64,3 +64,32 @@ export async function DELETE(
   const payload = (await response.json()) as Record<string, unknown>;
   return NextResponse.json(payload);
 }
+
+export async function POST(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  if (!BACKEND_URL) {
+    return NextResponse.json({ error: "Backend URL no configurada." }, { status: 500 });
+  }
+
+  const { id } = await params;
+  const response = await fetch(`${BACKEND_URL}/catalog/${id}/separate`, {
+    method: "POST",
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    return NextResponse.json(
+      { error: errorText || "Error al procesar la instrumental." },
+      { status: response.status }
+    );
+  }
+
+  const payload = (await response.json()) as { instrumental_url: string; [key: string]: unknown };
+  return NextResponse.json({
+    ...payload,
+    instrumental_url: normalizeUrl(payload.instrumental_url),
+  });
+}
