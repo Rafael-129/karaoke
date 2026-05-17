@@ -15,6 +15,30 @@ type UploadState = {
   statusMessage?: string;
 };
 
+type ProcessingProfile = "rapido" | "balanceado" | "maxima_calidad";
+
+const PROCESSING_OPTIONS: Array<{
+  value: ProcessingProfile;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: "rapido",
+    label: "Rápido",
+    description: "Whisper tiny + Demucs ligero. Prioriza velocidad y RAM baja.",
+  },
+  {
+    value: "balanceado",
+    label: "Balanceado",
+    description: "Whisper base + mejor separación. Buen punto medio.",
+  },
+  {
+    value: "maxima_calidad",
+    label: "Máxima calidad",
+    description: "Whisper small + mayor fidelidad de instrumental y letra.",
+  },
+];
+
 /**
  * Upload file in sequential chunks (faster than single upload, more stable than parallel)
  */
@@ -24,6 +48,9 @@ async function uploadFileInChunks(
   artist: string,
   lyrics: string,
   tags: string,
+  processingProfile: ProcessingProfile,
+  extractLyrics: boolean,
+  generateInstrumental: boolean,
   onProgress: (progress: number, message: string) => void
 ): Promise<{
   job_id?: string;
@@ -65,6 +92,9 @@ async function uploadFileInChunks(
     formData.append("artist", artist);
     formData.append("lyrics", lyrics);
     formData.append("tags", tags);
+    formData.append("processing_profile", processingProfile);
+    formData.append("extract_lyrics", String(extractLyrics));
+    formData.append("generate_instrumental", String(generateInstrumental));
 
     try {
       const response = await fetch("/api/upload", {
@@ -107,6 +137,9 @@ export default function UploadPage() {
   const [artist, setArtist] = useState("");
   const [lyrics, setLyrics] = useState("");
   const [tags, setTags] = useState("subido");
+  const [processingProfile, setProcessingProfile] = useState<ProcessingProfile>("balanceado");
+  const [extractLyrics, setExtractLyrics] = useState(true);
+  const [generateInstrumental, setGenerateInstrumental] = useState(true);
   const [uploadState, setUploadState] = useState<UploadState>({
     status: "idle",
   });
@@ -124,7 +157,7 @@ export default function UploadPage() {
 
     const interval = setInterval(async () => {
       try {
-        const response = await fetch(`/api/jobs/${pollingJobId}`);
+        const response = await fetch(`/api/jobs/${pollingJobId}`, { cache: "no-store" });
         if (!response.ok) return;
 
         const data = (await response.json()) as {
@@ -157,7 +190,7 @@ export default function UploadPage() {
               downloadUrl: data.song?.instrumentalUrl,
             },
           });
-        } else if (data.status === "error") {
+        } else if (data.status === "error" || data.status === "failed") {
           setPollingJobId(null);
           setUploadState({
             status: "error",
@@ -168,7 +201,7 @@ export default function UploadPage() {
       } catch (err) {
         console.error("Polling error:", err);
       }
-    }, 1000); // Poll every second
+    }, 5000);
 
     return () => clearInterval(interval);
   }, [pollingJobId]);
@@ -196,6 +229,9 @@ export default function UploadPage() {
         artist.trim(),
         lyrics,
         tags,
+        processingProfile,
+        extractLyrics,
+        generateInstrumental,
         (progress, message) => {
           setUploadState({
             status: "uploading",
@@ -219,6 +255,7 @@ export default function UploadPage() {
         });
       } else if (payload.job_id) {
         // Chunks are uploaded, processing is happening in background!
+        setPollingJobId(payload.job_id);
         setUploadState({
           status: "success",
           message: "✅ ¡Archivo subido! La IA está trabajando en tu canción. Ya puedes verla en el catálogo.",
@@ -336,6 +373,67 @@ export default function UploadPage() {
                     placeholder="subido, karaoke, nuevo"
                     onChange={(event) => setTags(event.target.value)}
                   />
+                </div>
+                <div className="flex flex-col gap-3 rounded-2xl border border-rose-100 bg-rose-50/60 p-4">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-600">
+                      Modo de procesamiento
+                    </p>
+                    <p className="mt-1 text-xs text-zinc-500">
+                      La calidad cambia la IA y el instrumental. El video original se conserva.
+                    </p>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-3">
+                    {PROCESSING_OPTIONS.map((option) => (
+                      <label
+                        key={option.value}
+                        className={`cursor-pointer rounded-2xl border p-4 transition-all ${
+                          processingProfile === option.value
+                            ? "border-rose-400 bg-white shadow-sm"
+                            : "border-rose-100 bg-white/70 hover:border-rose-200"
+                        }`}
+                      >
+                        <input
+                          className="sr-only"
+                          type="radio"
+                          name="processing_profile"
+                          value={option.value}
+                          checked={processingProfile === option.value}
+                          onChange={() => setProcessingProfile(option.value)}
+                        />
+                        <div className="text-sm font-bold text-zinc-800">{option.label}</div>
+                        <div className="mt-1 text-xs text-zinc-500">{option.description}</div>
+                      </label>
+                    ))}
+                  </div>
+
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <label className="flex items-start gap-3 rounded-2xl border border-rose-100 bg-white p-4">
+                      <input
+                        className="mt-1 h-4 w-4 rounded border-zinc-300 text-rose-500"
+                        type="checkbox"
+                        checked={extractLyrics}
+                        onChange={(event) => setExtractLyrics(event.target.checked)}
+                      />
+                      <span>
+                        <span className="block text-sm font-bold text-zinc-800">Extraer letra</span>
+                        <span className="block text-xs text-zinc-500">Usa Whisper para generar LRC / letras.</span>
+                      </span>
+                    </label>
+
+                    <label className="flex items-start gap-3 rounded-2xl border border-rose-100 bg-white p-4">
+                      <input
+                        className="mt-1 h-4 w-4 rounded border-zinc-300 text-rose-500"
+                        type="checkbox"
+                        checked={generateInstrumental}
+                        onChange={(event) => setGenerateInstrumental(event.target.checked)}
+                      />
+                      <span>
+                        <span className="block text-sm font-bold text-zinc-800">Generar instrumental</span>
+                        <span className="block text-xs text-zinc-500">Usa Demucs para quitar la voz y crear karaoke.</span>
+                      </span>
+                    </label>
+                  </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
                   <button
