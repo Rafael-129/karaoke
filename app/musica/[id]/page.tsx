@@ -177,7 +177,7 @@ export default function SongPage() {
 
     const controller = new AbortController();
 
-    const loadSong = async (isRetry = false) => {
+    const loadSong = async () => {
       try {
         const response = await fetch(`/api/catalog/${songId}`, {
           signal: controller.signal,
@@ -190,18 +190,13 @@ export default function SongPage() {
           setSong(payload);
           setLoadError(null);
           setIsLoadingSong(false);
-
-          // If song is completed, we don't need to poll anymore
-          if (payload.status === "completed") {
-            setJobStatus(null);
-          }
         }
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
           return;
         }
 
-        if (!controller.signal.aborted && !isRetry) {
+        if (!controller.signal.aborted) {
           setLoadError("No se pudo cargar la cancion.");
           setIsLoadingSong(false);
           setSong(null);
@@ -222,14 +217,28 @@ export default function SongPage() {
             const status = await res.json();
             setJobStatus(status);
             if (status.status === "completed") {
-              // Refresh song data to get lyrics and instrumental
-              void loadSong(true);
+              if (status.song) {
+                setSong((prev) => (prev ? { ...prev, ...status.song } : status.song));
+              }
+              setIsLoadingSong(false);
+              setJobStatus(null);
+              if (pollInterval) {
+                clearInterval(pollInterval);
+                pollInterval = null;
+              }
+            } else if (status.status === "error" || status.status === "failed") {
+              setJobStatus(status);
+              setIsLoadingSong(false);
+              if (pollInterval) {
+                clearInterval(pollInterval);
+                pollInterval = null;
+              }
             }
           }
         } catch (e) {
           console.error("Poll error:", e);
         }
-      }, 2000);
+      }, 5000);
     }
 
     return () => {
