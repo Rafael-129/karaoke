@@ -141,6 +141,9 @@ export default function SongPage() {
 
   const [jobStatus, setJobStatus] = useState<{ status: string; progress: number; message: string } | null>(null);
   const [isSeparatingOnDemand, setIsSeparatingOnDemand] = useState(false);
+  const [showEditLyrics, setShowEditLyrics] = useState(false);
+  const [editedLyrics, setEditedLyrics] = useState<string>("");
+  const originalLrcRef = useRef<string | null>(null);
 
   const handleSeparateOnDemand = async () => {
     if (!songId || isSeparatingOnDemand) return;
@@ -187,6 +190,11 @@ export default function SongPage() {
 
         const payload = (await response.json()) as (typeof songs)[number];
         if (!controller.signal.aborted) {
+          // Keep a copy of original LRC for restore purposes
+          originalLrcRef.current = payload.lrc ?? originalLrcRef.current;
+          // If user has a saved local edit, prefer that
+          const saved = typeof window !== "undefined" ? window.localStorage.getItem(`edited_lyrics_${songId}`) : null;
+          if (saved) payload.lrc = saved;
           setSong(payload);
           setLoadError(null);
           setIsLoadingSong(false);
@@ -237,6 +245,20 @@ export default function SongPage() {
       if (pollInterval) clearInterval(pollInterval);
     };
   }, [songId, song?.status]);
+
+  // Load any saved edit from localStorage when song changes
+  useEffect(() => {
+    if (!song) return;
+    const key = `edited_lyrics_${song.id}`;
+    const saved = typeof window !== "undefined" ? window.localStorage.getItem(key) : null;
+    if (saved) {
+      setEditedLyrics(saved);
+    } else {
+      setEditedLyrics(song.lrc ?? "");
+    }
+    // store original if not stored
+    if (!originalLrcRef.current && song.lrc) originalLrcRef.current = song.lrc;
+  }, [song]);
 
   const lyrics = useMemo(() => parseLrc(song?.lrc ?? ""), [song?.lrc]);
   const activeLyricIndex = useMemo(() => {
@@ -756,12 +778,21 @@ export default function SongPage() {
           </div>
 
           <div className="flex flex-col items-center gap-8 rounded-[3rem] border-4 border-white/50 bg-white/40 p-10 shadow-[0_10px_40px_rgb(251,113,133,0.15)] backdrop-blur-xl">
-            <div className="flex flex-col items-center text-center space-y-2">
+              <div className="flex flex-col items-center text-center space-y-2">
               <div className="inline-flex items-center justify-center rounded-full bg-rose-100 p-3 text-rose-500 shadow-inner">
                 <HeartPulse className="h-8 w-8 animate-pulse" />
               </div>
               <h2 className="text-3xl font-black text-zinc-800 tracking-tight mt-2">{song.title}</h2>
               <p className="text-lg font-medium text-rose-500/80">{song.artist}</p>
+              <div className="mt-3">
+                <button
+                  className="rounded-full border border-rose-200 bg-white px-3 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50"
+                  type="button"
+                  onClick={() => setShowEditLyrics(true)}
+                >
+                  ✏️ Editar letra
+                </button>
+              </div>
             </div>
 
             <div className="w-full max-w-4xl rounded-[2.5rem] border-2 border-white/60 bg-white/50 p-8 shadow-inner backdrop-blur-sm">
@@ -887,6 +918,53 @@ export default function SongPage() {
                     );
                   })}
                 </div>
+
+                {/* Edit Lyrics Modal */}
+                {showEditLyrics && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <div className="w-[90%] max-w-3xl rounded-2xl bg-white p-6 shadow-lg">
+                      <h3 className="text-lg font-bold mb-3">Editar letra (LRC)</h3>
+                      <textarea
+                        className="w-full h-64 rounded-md border p-3 text-sm font-mono"
+                        value={editedLyrics}
+                        onChange={(e) => setEditedLyrics(e.target.value)}
+                      />
+                      <div className="mt-4 flex gap-3 justify-end">
+                        <button
+                          className="rounded-md px-4 py-2 text-sm bg-white border"
+                          onClick={() => {
+                            // restore from original
+                            if (originalLrcRef.current) {
+                              setEditedLyrics(originalLrcRef.current);
+                              window.localStorage.removeItem(`edited_lyrics_${song.id}`);
+                              setSong((prev) => (prev ? { ...prev, lrc: originalLrcRef.current as string } : prev));
+                            }
+                            setShowEditLyrics(false);
+                          }}
+                        >
+                          Restaurar original
+                        </button>
+                        <button
+                          className="rounded-md px-4 py-2 text-sm bg-rose-500 text-white"
+                          onClick={() => {
+                            // Save to local state and localStorage
+                            window.localStorage.setItem(`edited_lyrics_${song.id}`, editedLyrics);
+                            setSong((prev) => (prev ? { ...prev, lrc: editedLyrics } : prev));
+                            setShowEditLyrics(false);
+                          }}
+                        >
+                          Guardar cambios
+                        </button>
+                        <button
+                          className="rounded-md px-4 py-2 text-sm bg-white border"
+                          onClick={() => setShowEditLyrics(false)}
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Bouncing Heart Guide */}
                 <div
